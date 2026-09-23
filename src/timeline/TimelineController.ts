@@ -2,7 +2,8 @@ import { createStore } from 'zustand/vanilla'
 import { useStore } from 'zustand'
 import { lenis, bindLenisToTicker } from '../animation/lenis'
 import { gsap } from '../animation/gsap'
-import { YEAR_COUNT } from './timeline.data'
+import { YEARS } from './timeline.data'
+import { activeYearAtSlot, getHeroFadeEnd, getLayout, journeyStore, tToSlot, yearIndexToT } from './journey'
 import { isBrowser, prefersReducedMotion } from '../utils/device'
 
 export interface Pointer {
@@ -31,12 +32,8 @@ const REDUCED_MOTION = prefersReducedMotion()
 const PROGRESS_DAMPING = REDUCED_MOTION ? 1 : 0.085
 const POINTER_DAMPING = REDUCED_MOTION ? 1 : 0.07
 const VELOCITY_DECAY = 0.88
-// Year N becomes "active" once progress crosses the halfway point to it, i.e.
-// at 0.5 / (YEAR_COUNT - 1). The hero must finish fading out comfortably
-// before that boundary — otherwise activeYearIndex flips to "2012" while the
-// hero title is still ghosting on screen. 0.4x of that boundary leaves a
-// clean beat where 2011 is fully revealed, hero-free, before the handoff.
-export const HERO_FADE_END = (0.4 * 0.5) / (YEAR_COUNT - 1)
+// The hero fades out over the first fifth of a slot (see getHeroFadeEnd) — comfortably before
+// the first year becomes active, so the hero never ghosts while a year is already shown.
 
 export const timelineStore = createStore<TimelineState>(() => ({
   rawProgress: 0,
@@ -104,12 +101,9 @@ export function initTimelineController() {
       y: gsap.utils.interpolate(state.smoothPointer.y, state.pointer.y, POINTER_DAMPING),
     }
 
-    const activeYearIndex = Math.min(
-      YEAR_COUNT - 1,
-      Math.max(0, Math.round(smoothProgress * (YEAR_COUNT - 1))),
-    )
+    const activeYearIndex = activeYearAtSlot(getLayout(), tToSlot(smoothProgress))
 
-    const hasEntered = state.hasEntered || smoothProgress > HERO_FADE_END * 0.5
+    const hasEntered = state.hasEntered || smoothProgress > getHeroFadeEnd() * 0.5
 
     const next: Partial<TimelineState> = { smoothProgress, velocity, smoothPointer }
     if (activeYearIndex !== state.activeYearIndex) next.activeYearIndex = activeYearIndex
@@ -120,7 +114,44 @@ export function initTimelineController() {
 
   gsap.ticker.add(tick)
 
+  // When the journey re-measures itself (a year gained memories and the strings grew),
+  // keep the camera on the same spot of the neck rather than the same fraction of the scroll.
+  const unsubscribeJourney = journeyStore.subscribe((state, prev) => {
+    if (state.layout.slotsLength === prev.layout.slotsLength) return
+    const slot = timelineStore.getState().smoothProgress * prev.layout.slotsLength
+    const t = Math.min(1, slot / state.layout.slotsLength)
+    timelineStore.setState({ rawProgress: t, smoothProgress: t })
+    // The scroll spacer resizes on the next render; wait for it before repositioning Lenis.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        lenis?.resize()
+        lenis?.scrollTo(t * (lenis?.limit ?? 0), { immediate: true, force: true })
+      }),
+    )
+  })
+
+  // Deep link: ?year=2018 opens the journey at that year.
+  const requested = Number(new URLSearchParams(window.location.search).get('year'))
+  const requestedIndex = YEARS.findIndex((y) => y.year === requested)
+  if (requestedIndex >= 0) {
+    requestAnimationFrame(() => {
+      lenis?.resize()
+      lenis?.scrollTo(yearIndexToT(requestedIndex) * (lenis?.limit ?? 0), { immediate: true, force: true })
+    })
+  }
+
+  // Keep the URL shareable as the active year changes. replaceState (not
+  // pushState) so scrolling never fills the Back button with every year passed.
+  const unsubscribeUrl = timelineStore.subscribe((state, prev) => {
+    if (state.activeYearIndex === prev.activeYearIndex || !state.hasEntered) return
+    const url = new URL(window.location.href)
+    url.searchParams.set('year', String(YEARS[state.activeYearIndex].year))
+    window.history.replaceState(window.history.state, '', url)
+  })
+
   return () => {
+    unsubscribeUrl()
+    unsubscribeJourney()
     window.removeEventListener('pointermove', onPointerMove)
     gsap.ticker.remove(tick)
     unbindTicker?.()
@@ -131,6 +162,6 @@ export function initTimelineController() {
 /** Scroll (via Lenis) to a given year's position on the timeline. */
 export function scrollToYearIndex(index: number) {
   if (!lenis || !isBrowser) return
-  const target = (index / (YEAR_COUNT - 1)) * lenis.limit
+  const target = yearIndexToT(index) * lenis.limit
   lenis.scrollTo(target, { duration: 1.6, easing: (t: number) => 1 - Math.pow(1 - t, 4) })
 }

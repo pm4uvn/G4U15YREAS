@@ -2,41 +2,44 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Line } from '@react-three/drei'
-import { getStringOffsets, sampleStringPoints, sampleNeckEdge } from './guitarPath'
+import { getStringOffsets, sampleStringPoints, sampleNeckEdge, useJourneyPath } from './guitarPath'
 import { YEARS } from '../timeline/timeline.data'
 import { YearNode } from './YearNode'
-import { getTimelineState, HERO_FADE_END } from '../timeline/TimelineController'
+import { getTimelineState } from '../timeline/TimelineController'
+import { getHeroFadeEnd } from '../timeline/journey'
 
-const EDGE_BASE_OPACITY = 0.45
-const STRING_BASE_OPACITY = 0.95
+const EDGE_BASE_OPACITY = 0.3
+const STRING_BASE_OPACITY = 0.82
 // Low-to-high string gauge, purely visual — thicker "bass" strings, thinner "treble".
-const STRING_WIDTHS = [2.4, 1.9, 1.5, 1.1, 0.85]
+const STRING_WIDTHS = [2.0, 1.6, 1.3, 1.0, 0.8]
 // Strings read as bright metal, the edge rails as a dimmer wood-toned frame —
 // the same contrast a real neck has between its binding and its strings.
-const STRING_LOW_COLOR = new THREE.Color('#e8cf94')
-const STRING_HIGH_COLOR = new THREE.Color('#fff8ea')
-const EDGE_COLOR = new THREE.Color('#8a6a3c')
+// Warm ivory to muted gold; no glow — the path should feel engraved, not neon.
+const STRING_LOW_COLOR = new THREE.Color('#c4a468')
+const STRING_HIGH_COLOR = new THREE.Color('#e8e2d6')
+const EDGE_COLOR = new THREE.Color('#6f5c39')
 
 type LineHandle = { material: THREE.Material & { opacity: number } } | null
 
 export function GuitarTimeline() {
+  const path = useJourneyPath()
   const stringOffsets = useMemo(() => getStringOffsets(), [])
   const strings = useMemo(
     () =>
       stringOffsets.map((offset, i) => ({
-        points: sampleStringPoints(offset).map((p) => [p.x, p.y, p.z] as [number, number, number]),
+        points: sampleStringPoints(path, offset).map((p) => [p.x, p.y, p.z] as [number, number, number]),
         color: STRING_LOW_COLOR.clone().lerp(STRING_HIGH_COLOR, i / (stringOffsets.length - 1)),
         width: STRING_WIDTHS[i] ?? 1,
       })),
-    [stringOffsets],
+    [stringOffsets, path],
   )
 
   const edges = useMemo(
     () =>
       ([-1, 1] as const).map((side) =>
-        sampleNeckEdge(side).map((p) => [p.x, p.y, p.z] as [number, number, number]),
+        sampleNeckEdge(path, side).map((p) => [p.x, p.y, p.z] as [number, number, number]),
       ),
-    [],
+    [path],
   )
 
   // The Line2 mesh instances rendered by drei's <Line>, kept so we can fade
@@ -46,7 +49,7 @@ export function GuitarTimeline() {
 
   useFrame(() => {
     const { smoothProgress } = getTimelineState()
-    const heroReveal = THREE.MathUtils.smoothstep(smoothProgress, 0, HERO_FADE_END)
+    const heroReveal = THREE.MathUtils.smoothstep(smoothProgress, 0, getHeroFadeEnd())
 
     for (const line of stringRefs.current) {
       if (line?.material) line.material.opacity = STRING_BASE_OPACITY * heroReveal

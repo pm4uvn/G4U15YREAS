@@ -1,0 +1,534 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { Line, Text } from '@react-three/drei'
+import * as THREE from 'three'
+import { getNeckFrame, NECK_WIDTH, SURFACE_LIFT, useJourneyPath } from './guitarPath'
+import { getTimelineState } from '../timeline/TimelineController'
+import { getHeroFadeEnd, tToSlot } from '../timeline/journey'
+import { useExperienceStore } from '../store/experienceStore'
+import { youtubeThumbnail } from '../lib/youtube'
+import { signPaths } from '../lib/supabaseStorage'
+import { prefersReducedMotion } from '../utils/device'
+import { firstVisual, memoryExcerpt, voiceNotes } from '../memories/memoryFormat'
+import type { G4UMemory } from '../types/g4u-memory'
+
+const CARD_WIDTH = 2.7
+/** Gap between the neck's edge and the card's nearest edge. */
+const SIDE_GAP = 1.15
+/** Floats the card's bottom edge above the strings, low enough to stay in view when the camera arrives. */
+const RAISE = 0.7
+
+/** Only memories close to the camera are mounted (and hold a texture). */
+const SLOTS_BEHIND = 0.8
+const SLOTS_AHEAD = 2.8
+
+// Palette
+const GOLD = '#C4A468'
+const IVORY = '#E8E2D6'
+const MUTED = '#81796B'
+
+/** Depth by opacity and scale, not geometry: the nearest memory reads fullest, the rest recede. */
+const NEAR_OPACITY = 0.85
+const FAR_OPACITY = 0.2
+const NEAR_SCALE = 1
+const FAR_SCALE = 0.85
+
+const REDUCED = prefersReducedMotion()
+const _up = new THREE.Vector3(0, 1, 0)
+
+/** Small stable pseudo-random in [-1, 1] from a string, so a memory always lands in the same place. */
+function jitter(id: string, salt: number): number {
+  let h = 2166136261 ^ salt
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619)
+  return ((h >>> 0) % 2000) / 1000 - 1
+}
+
+function coverFor(memory: G4UMemory): string | undefined {
+  if (memory.coverUrl) return memory.coverUrl
+  const first = firstVisual(memory)
+  if (first?.mediaType === 'video' && first.externalId) return youtubeThumbnail(first.externalId)
+  return undefined
+}
+
+/** A soft dark falloff used as a drop shadow under each photo. Built once, shared by every card. */
+let shadowTexture: THREE.CanvasTexture | null = null
+function getShadowTexture() {
+  if (shadowTexture) return shadowTexture
+  const size = 128
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  const g = ctx.createRadialGradient(size / 2, size / 2, size * 0.18, size / 2, size / 2, size / 2)
+  g.addColorStop(0, 'rgba(0,0,0,0.85)')
+  g.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, size, size)
+  shadowTexture = new THREE.CanvasTexture(canvas)
+  return shadowTexture
+}
+
+/** Loads a texture only while `enabled`, and disposes it as soon as it is not needed. */
+function useCoverTexture(url: string | undefined, enabled: boolean) {
+  const [state, setState] = useState<{ url: string; texture: THREE.Texture; aspect: number } | null>(null)
+
+  useEffect(() => {
+    if (!enabled || !url) return
+    let cancelled = false
+    let loaded: THREE.Texture | null = null
+    const loader = new THREE.TextureLoader()
+    loader.setCrossOrigin('anonymous')
+    loader.load(
+      url,
+      (texture) => {
+        if (cancelled) {
+          texture.dispose()
+          return
+        }
+        texture.colorSpace = THREE.SRGBColorSpace
+        texture.needsUpdate = true
+        loaded = texture
+        const image = texture.image as { width: number; height: number }
+        setState({ url, texture, aspect: image.width / image.height })
+      },
+      undefined,
+      (err) => {
+        console.warn('[g4u] memory cover failed to load', url, err)
+      },
+    )
+    return () => {
+      cancelled = true
+      loaded?.dispose()
+    }
+  }, [url, enabled])
+
+  return enabled && state?.url === url ? state : null
+}
+
+type PlaybackState = 'idle' | 'loading' | 'playing' | 'error'
+
+/** Only one voice note plays at a time, wherever it is. */
+let stopActivePlayback: (() => void) | null = null
+
+/** Plays a memory's voice notes one after another, on demand. Nothing is fetched until the button is pressed. */
+function useVoicePlayback(memory: G4UMemory) {
+  const paths = useMemo(
+    () => voiceNotes(memory).map((v) => v.storagePath).filter(Boolean) as string[],
+    [memory],
+  )
+  const [state, setState] = useState<PlaybackState>('idle')
+  const audio = useRef<HTMLAudioElement | null>(null)
+  const token = useRef(0)
+
+  const stop = useCallback(() => {
+    token.current++
+    audio.current?.pause()
+    audio.current = null
+    setState('idle')
+  }, [])
+
+  const playFrom = useCallback(
+    async function play(index: number, mine: number) {
+      try {
+        const urls = await signPaths([paths[index]])
+        if (mine !== token.current) return
+        const el = new Audio(urls[paths[index]])
+        audio.current = el
+        el.onended = () => {
+          if (mine !== token.current) return
+          if (index + 1 < paths.length) void play(index + 1, mine)
+          else {
+            audio.current = null
+            setState('idle')
+          }
+        }
+        el.onerror = () => mine === token.current && setState('error')
+        await el.play()
+        if (mine === token.current) setState('playing')
+      } catch (err) {
+        console.warn('[g4u] could not play the voice note', err)
+        if (mine === token.current) setState('error')
+      }
+    },
+    [paths],
+  )
+
+  const toggle = useCallback(() => {
+    if (paths.length === 0) return
+    if (state === 'playing' || state === 'loading') {
+      stop()
+      return
+    }
+    stopActivePlayback?.()
+    stopActivePlayback = stop
+    const mine = ++token.current
+    setState('loading')
+    void playFrom(0, mine)
+  }, [paths.length, playFrom, state, stop])
+
+  // Leaving the page (or the card being unmounted) must silence it.
+  useEffect(
+    () => () => {
+      token.current++
+      audio.current?.pause()
+      if (stopActivePlayback === stop) stopActivePlayback = null
+    },
+    [stop],
+  )
+
+  return { hasVoice: paths.length > 0, state, toggle, stop }
+}
+
+interface MemoryNodeProps {
+  memory: G4UMemory
+  /** Slot along the journey where this memory hangs. */
+  slot: number
+  /** -1 = left of the strings, 1 = right. */
+  side: -1 | 1
+}
+
+/**
+ * One memory, hung beside the strings. Only real memories are drawn: a photo card once its picture
+ * has loaded (never an empty frame), or — for a memory with no picture — its words alone.
+ */
+export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
+  const path = useJourneyPath()
+  const openMemory = useExperienceStore((s) => s.openMemory)
+
+  const [near, setNear] = useState(false)
+  const [hovered, setHovered] = useState(false)
+
+  const groupRef = useRef<THREE.Group>(null)
+  const cardRef = useRef<THREE.Group>(null)
+  const frameMat = useRef<THREE.MeshBasicMaterial>(null)
+  const photoMat = useRef<THREE.MeshBasicMaterial>(null)
+  const shadowMat = useRef<THREE.MeshBasicMaterial>(null)
+  const leaderRef = useRef<{ material: THREE.Material & { opacity: number } } | null>(null)
+  const textRefs = useRef<({ fillOpacity: number } | null)[]>([])
+  const hoverScale = useRef(1)
+  const appear = useRef(0)
+
+  const cover = coverFor(memory)
+  const isVideo = firstVisual(memory)?.mediaType === 'video'
+  const voice = useVoicePlayback(memory)
+  const hasVoice = voice.hasVoice
+  const wantsPhoto = !!cover
+  const [btnHover, setBtnHover] = useState(false)
+  const btnDiscMat = useRef<THREE.MeshBasicMaterial>(null)
+  const btnRingMat = useRef<THREE.MeshBasicMaterial>(null)
+  const btnBars = useRef<THREE.MeshBasicMaterial>(null)
+  const btnScale = useRef(1)
+  const btnGroup = useRef<THREE.Group>(null)
+  const tex = useCoverTexture(cover, near)
+
+  const layout = useMemo(() => {
+    const t = slot / path.slotsLength
+    const frame = getNeckFrame(t, path)
+    // Left/right must stay left/right on screen, so use a horizontal side vector rather than the
+    // neck's twisting binormal.
+    const right = new THREE.Vector3().crossVectors(frame.tangent, _up).normalize()
+    const up = new THREE.Vector3().crossVectors(right, frame.tangent).normalize()
+
+    const width = CARD_WIDTH * (0.9 + 0.2 * (jitter(memory.id, 1) * 0.5 + 0.5))
+    const lateral = side * (NECK_WIDTH / 2 + SIDE_GAP + width / 2 + jitter(memory.id, 2) * 0.35)
+
+    const position = frame.point.clone().addScaledVector(right, lateral)
+    const anchor = frame.point.clone().addScaledVector(up, SURFACE_LIFT)
+
+    // The card faces back toward the camera and turns a little toward the strings.
+    const normal = frame.tangent.clone().multiplyScalar(-0.78).addScaledVector(right, -side * 0.5).normalize()
+    const m = new THREE.Matrix4().lookAt(normal, new THREE.Vector3(), up)
+    const quaternion = new THREE.Quaternion().setFromRotationMatrix(m)
+    quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), jitter(memory.id, 4) * 0.06))
+
+    return { position, quaternion, width, leader: anchor.clone().sub(position), stem: up.clone().multiplyScalar(RAISE) }
+  }, [memory.id, slot, side, path])
+
+  const w = layout.width
+  const h = wantsPhoto ? w / (tex?.aspect ?? 4 / 3) : 1.2
+  const rise = h / 2 + RAISE + (jitter(memory.id, 3) * 0.5 + 0.5) * 0.25
+
+  const title = memory.title ?? ''
+  const author = memory.author?.displayName ?? ''
+  const quote = memoryExcerpt(memory, 140)
+  const showWords = !wantsPhoto && (quote || author)
+
+  useFrame(({ camera }) => {
+    const group = groupRef.current
+    if (!group) return
+    const { smoothProgress, smoothPointer } = getTimelineState()
+    const ahead = slot - tToSlot(smoothProgress)
+
+    const inWindow = ahead > -SLOTS_BEHIND && ahead < SLOTS_AHEAD
+    if (inWindow !== near) setNear(inWindow)
+    if (!inWindow) return
+
+    // Nearest reads fullest (~1 slot ahead); further along the path memories recede.
+    const depth = THREE.MathUtils.smoothstep(Math.abs(ahead - 0.9), 0.3, 1.9)
+    const baseOpacity = THREE.MathUtils.lerp(NEAR_OPACITY, FAR_OPACITY, depth)
+    const baseScale = THREE.MathUtils.lerp(NEAR_SCALE, FAR_SCALE, depth)
+
+    const reveal = THREE.MathUtils.smoothstep(smoothProgress, 0, getHeroFadeEnd())
+    // Fade out as the camera is about to pass through the card.
+    const passing = THREE.MathUtils.smoothstep(camera.position.distanceTo(layout.position), 1.6, 4.2)
+
+    // A photo card only appears once its picture has arrived, and then eases in.
+    const ready = wantsPhoto ? !!tex : true
+    appear.current += ((ready ? 1 : 0) - appear.current) * 0.06
+    const alpha = reveal * passing * baseOpacity * appear.current
+
+    hoverScale.current += ((hovered ? 1.05 : 1) - hoverScale.current) * 0.15
+    if (cardRef.current) {
+      cardRef.current.scale.setScalar(baseScale * hoverScale.current)
+      // A few pixels of drift with the pointer.
+      const px = REDUCED ? 0 : smoothPointer.x
+      const py = REDUCED ? 0 : smoothPointer.y
+      cardRef.current.position.set(px * 0.05, rise + py * 0.06, 0)
+    }
+
+    if (btnGroup.current) {
+      btnScale.current += ((btnHover ? 1.12 : 1) - btnScale.current) * 0.2
+      btnGroup.current.scale.setScalar(btnScale.current)
+    }
+    // The listen button stays clearly readable while its memory is in view.
+    const btnAlpha = Math.min(1, alpha * 1.15)
+    if (btnDiscMat.current) btnDiscMat.current.opacity = btnAlpha * 0.85
+    if (btnRingMat.current) btnRingMat.current.opacity = btnAlpha * 0.9
+    if (btnBars.current) btnBars.current.opacity = btnAlpha
+
+    if (frameMat.current) frameMat.current.opacity = alpha * 0.35
+    if (photoMat.current) photoMat.current.opacity = alpha
+    if (shadowMat.current) shadowMat.current.opacity = alpha * 0.55
+    if (leaderRef.current) leaderRef.current.material.opacity = reveal * passing * appear.current * 0.16
+    // quote 0.9 · play mark 0.9 · title 0.75 · author 0.45
+    const factors = [0.9, 0.9, 0.75, 0.45, 0.85, 0.7]
+    textRefs.current.forEach((t, i) => {
+      if (t) t.fillOpacity = (i >= 4 ? btnAlpha : alpha) * (factors[i] ?? 1)
+    })
+  })
+
+  // A memory that drifts out of range stops talking.
+  useEffect(() => {
+    if (!near) voice.stop()
+    // stop is stable per memory
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [near])
+
+  useEffect(() => {
+    document.body.style.cursor = hovered || btnHover ? 'pointer' : ''
+    return () => {
+      document.body.style.cursor = ''
+    }
+  }, [hovered, btnHover])
+
+  if (!near) return <group ref={groupRef} position={layout.position} />
+
+  const open = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation()
+    openMemory(memory.year, memory.id)
+  }
+  const over = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation()
+    setHovered(true)
+  }
+  const out = () => setHovered(false)
+
+  const authorLine = `— ${author}${hasVoice ? ' · có ghi âm' : ''}`
+
+  return (
+    <group ref={groupRef} position={layout.position}>
+      {/* A hairline back to the strings, barely there */}
+      {(wantsPhoto ? !!tex : !!showWords) && (
+        <Line
+          ref={(el) => {
+            leaderRef.current = el as never
+          }}
+          points={[
+            [layout.stem.x, layout.stem.y, layout.stem.z],
+            [layout.leader.x, layout.leader.y, layout.leader.z],
+          ]}
+          color={GOLD}
+          transparent
+          opacity={0}
+          lineWidth={0.6}
+        />
+      )}
+
+      <group quaternion={layout.quaternion}>
+        <group ref={cardRef} position={[0, rise, 0]}>
+          {wantsPhoto && tex && (
+            <>
+              <mesh position={[0.07, -0.1, -0.03]}>
+                <planeGeometry args={[w * 1.35, h * 1.45]} />
+                <meshBasicMaterial ref={shadowMat} map={getShadowTexture()} color="#000000" transparent opacity={0} depthWrite={false} toneMapped={false} />
+              </mesh>
+
+              {/* Thin warm border, just outside the picture */}
+              <mesh position={[0, 0, -0.01]} onClick={open} onPointerOver={over} onPointerOut={out}>
+                <planeGeometry args={[w + 0.05, h + 0.05]} />
+                <meshBasicMaterial ref={frameMat} color={GOLD} transparent opacity={0} toneMapped={false} />
+              </mesh>
+
+              <mesh onClick={open} onPointerOver={over} onPointerOut={out}>
+                <planeGeometry args={[w, h]} />
+                <meshBasicMaterial key="photo" ref={photoMat} map={tex.texture} color="#ffffff" transparent opacity={0} toneMapped={false} />
+              </mesh>
+
+              {isVideo && (
+                <Text
+                  ref={(el: never) => {
+                    textRefs.current[1] = el
+                  }}
+                  position={[0, 0, 0.03]}
+                  fontSize={0.5}
+                  color="#f5ecd4"
+                  anchorX="center"
+                  anchorY="middle"
+                  fillOpacity={0}
+                >
+                  ▶
+                </Text>
+              )}
+
+              {title && (
+                <Text
+                  ref={(el: never) => {
+                    textRefs.current[2] = el
+                  }}
+                  position={[0, -h / 2 - 0.15, 0.02]}
+                  maxWidth={w}
+                  fontSize={0.14}
+                  color={IVORY}
+                  anchorX="center"
+                  anchorY="top"
+                  textAlign="center"
+                  fillOpacity={0}
+                >
+                  {title}
+                </Text>
+              )}
+              {author && (
+                <Text
+                  ref={(el: never) => {
+                    textRefs.current[3] = el
+                  }}
+                  position={[0, -h / 2 - (title ? 0.45 : 0.15), 0.02]}
+                  fontSize={0.1}
+                  color={MUTED}
+                  anchorX="center"
+                  anchorY="top"
+                  fillOpacity={0}
+                >
+                  {authorLine}
+                </Text>
+              )}
+            </>
+          )}
+
+          {/* Listen: a round button, so a recording is one click away */}
+          {hasVoice && (wantsPhoto ? !!tex : true) && (
+            <group
+              ref={btnGroup}
+              position={wantsPhoto ? [w / 2 - 0.38, -h / 2 + 0.38, 0.06] : [0, showWords && quote ? -1.05 : -0.2, 0.04]}
+              onClick={(e) => {
+                e.stopPropagation()
+                voice.toggle()
+              }}
+              onPointerOver={(e) => {
+                e.stopPropagation()
+                setBtnHover(true)
+              }}
+              onPointerOut={() => setBtnHover(false)}
+            >
+              <mesh>
+                <circleGeometry args={[0.3, 40]} />
+                <meshBasicMaterial ref={btnDiscMat} color="#0b0805" transparent opacity={0} depthWrite={false} toneMapped={false} />
+              </mesh>
+              <mesh position={[0, 0, 0.005]}>
+                <ringGeometry args={[0.285, 0.31, 40]} />
+                <meshBasicMaterial ref={btnRingMat} color={GOLD} transparent opacity={0} depthWrite={false} toneMapped={false} />
+              </mesh>
+              {voice.state === 'playing' ? (
+                <>
+                  <mesh position={[-0.07, 0, 0.01]}>
+                    <planeGeometry args={[0.07, 0.24]} />
+                    <meshBasicMaterial ref={btnBars} color={IVORY} transparent opacity={0} toneMapped={false} />
+                  </mesh>
+                  <mesh position={[0.07, 0, 0.01]}>
+                    <planeGeometry args={[0.07, 0.24]} />
+                    <meshBasicMaterial color={IVORY} transparent opacity={0.9} toneMapped={false} />
+                  </mesh>
+                </>
+              ) : (
+                <Text
+                  ref={(el: never) => {
+                    textRefs.current[4] = el
+                  }}
+                  position={[0.03, 0, 0.01]}
+                  fontSize={0.26}
+                  color={IVORY}
+                  anchorX="center"
+                  anchorY="middle"
+                  fillOpacity={0}
+                >
+                  {voice.state === 'loading' ? '…' : voice.state === 'error' ? '!' : '▶'}
+                </Text>
+              )}
+              <Text
+                ref={(el: never) => {
+                  textRefs.current[5] = el
+                }}
+                position={[0, -0.5, 0.01]}
+                fontSize={0.09}
+                letterSpacing={0.18}
+                color={GOLD}
+                anchorX="center"
+                anchorY="middle"
+                fillOpacity={0}
+              >
+                {voice.state === 'playing' ? 'ĐANG NGHE' : voice.state === 'error' ? 'KHÔNG PHÁT ĐƯỢC' : 'NGHE GHI ÂM'}
+              </Text>
+            </group>
+          )}
+
+          {/* A memory with no picture: its words only, no frame */}
+          {showWords && (
+            <>
+              {quote && (
+                <Text
+                  ref={(el: never) => {
+                    textRefs.current[0] = el
+                  }}
+                  maxWidth={w - 0.2}
+                  fontSize={0.16}
+                  lineHeight={1.5}
+                  color={IVORY}
+                  anchorX="center"
+                  anchorY="middle"
+                  textAlign="center"
+                  fillOpacity={0}
+                >
+                  {`“${quote}”`}
+                </Text>
+              )}
+              {author && (
+                <Text
+                  ref={(el: never) => {
+                    textRefs.current[3] = el
+                  }}
+                  position={[0, quote ? -0.55 : 0, 0.02]}
+                  fontSize={0.1}
+                  color={MUTED}
+                  anchorX="center"
+                  anchorY="top"
+                  fillOpacity={0}
+                >
+                  {authorLine}
+                </Text>
+              )}
+            </>
+          )}
+        </group>
+      </group>
+    </group>
+  )
+}

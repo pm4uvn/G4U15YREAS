@@ -1,9 +1,9 @@
 :root {
-  --bg: #07070a;
-  --fg: #f5f1e8;
-  --muted: #8f897a;
-  --accent: #f2c879;
-  --border: rgba(245, 241, 232, 0.14);
+  --bg: #050507;
+  --fg: #e8e2d6;
+  --muted: #81796b;
+  --accent: #c4a468;
+  --border: rgba(196, 164, 104, 0.25);
 
   --sans: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
   --serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman', serif;
@@ -113,78 +113,6 @@ button {
   transition: width 0.25s ease-out;
 }
 
-/* ---------- Intro / hero ---------- */
-
-.intro {
-  position: fixed;
-  inset: 0;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 2rem;
-  will-change: transform, opacity;
-}
-.intro__kicker {
-  margin: 0 0 1rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.intro__title {
-  margin: 0;
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(3.5rem, 14vw, 9rem);
-  line-height: 0.9;
-  letter-spacing: 0.02em;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-.intro__title-sub {
-  font-family: var(--sans);
-  font-size: clamp(1rem, 2.6vw, 1.5rem);
-  letter-spacing: 0.55em;
-  padding-left: 0.55em;
-  color: var(--accent);
-}
-.intro__range {
-  margin: 1.25rem 0 0.75rem;
-  font-size: clamp(0.9rem, 1.6vw, 1.1rem);
-  letter-spacing: 0.2em;
-  color: var(--muted);
-}
-.intro__tagline {
-  margin: 0 0 2.5rem;
-  max-width: 32rem;
-  font-size: clamp(0.95rem, 1.8vw, 1.15rem);
-  color: var(--fg);
-  opacity: 0.85;
-}
-.intro__cta {
-  appearance: none;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--fg);
-  padding: 0.9rem 2rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  border-radius: 999px;
-  transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
-}
-.intro__cta:hover,
-.intro__cta:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(242, 200, 121, 0.08);
-}
-
 /* ---------- Navigation ---------- */
 
 .nav {
@@ -229,8 +157,8 @@ button {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  max-height: 70vh;
+  gap: clamp(0.45rem, 1.1vh, 0.9rem);
+  max-height: 76vh;
   overflow-y: auto;
   pointer-events: auto;
   scrollbar-width: none;
@@ -242,22 +170,37 @@ button {
   appearance: none;
   border: none;
   background: transparent;
-  color: var(--muted);
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.22);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
   padding: 0.15rem 0.4rem;
-  opacity: 0.55;
-  transition: opacity 0.3s ease, color 0.3s ease;
+  transition: color 0.3s ease;
+}
+.nav__year:hover,
+.nav__year:focus-visible {
+  color: rgba(255, 255, 255, 0.55);
 }
 .nav__year.is-active {
   color: var(--accent);
-  opacity: 1;
-  font-size: 0.75rem;
 }
 
 @media (max-width: 720px) {
   .nav__years {
-    display: none;
+    top: 4.2rem;
+    left: 0;
+    right: 0;
+    transform: none;
+    flex-direction: row;
+    gap: 0.2rem;
+    max-height: none;
+    padding: 0 1rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+  }
+  .nav__year {
+    flex: none;
+    padding: 0.4rem 0.55rem;
   }
 }
 
@@ -283,16 +226,19 @@ button {
 }
 .year-indicator__count {
   font-family: var(--serif);
-  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
-  letter-spacing: 0.02em;
+  font-size: clamp(2.2rem, 4.2vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--fg);
 }
 .year-indicator__count-total {
-  font-size: 0.55em;
-  color: var(--muted);
+  font-size: 0.42em;
+  letter-spacing: 0.06em;
+  color: rgba(232, 226, 214, 0.32);
 }
 .year-indicator__title {
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
+  font-size: 0.66rem;
+  letter-spacing: 0.32em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -313,7 +259,7 @@ button {
   position: fixed;
   top: 1.75rem;
   right: 1.5rem;
-  z-index: 2;
+  z-index: 4; /* above the cover, which is z-index 3 */
   display: flex;
   align-items: center;
   gap: 0.5rem;

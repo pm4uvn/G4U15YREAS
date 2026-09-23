@@ -1,17 +1,17 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { guitarPathCurve, cameraPathCurve } from './guitarPath'
+import { getJourneyPath } from './guitarPath'
 import { getTimelineState } from '../timeline/TimelineController'
 import { prefersReducedMotion } from '../utils/device'
-import { YEAR_COUNT } from '../timeline/timeline.data'
+import { getLayout } from '../timeline/journey'
 
 const PULL_BACK = 1.7
 // A small forward lean in years, not a fixed distance — at rest (t=0) this
 // must stay well inside year 2011's own active window, otherwise the camera
 // centers on 2012's node before the user has scrolled anywhere.
 const LOOK_AHEAD_YEARS = 0.25
-const PARALLAX_STRENGTH = 0.45
+const PARALLAX_STRENGTH = 0.12 // the path stays essentially still under the pointer
 const ROLL_STRENGTH = 6.5
 const REDUCED_MOTION = prefersReducedMotion()
 const CAMERA_DAMPING = REDUCED_MOTION ? 1 : 0.055
@@ -36,11 +36,12 @@ export function CameraRig() {
     // stays clear of the solid guitar neck mesh, while looking toward the
     // neck itself — slightly ahead of the current scroll position — so it
     // reads as flying alongside the timeline rather than through it.
-    cameraPathCurve.getPointAt(t, _point)
-    cameraPathCurve.getTangentAt(t, _tangent)
+    const path = getJourneyPath()
+    path.cameraCurve.getPointAt(t, _point)
+    path.cameraCurve.getTangentAt(t, _tangent)
 
-    const lookAheadT = THREE.MathUtils.clamp(t + LOOK_AHEAD_YEARS / (YEAR_COUNT - 1), 0, 1)
-    guitarPathCurve.getPointAt(lookAheadT, _lookTarget)
+    const lookAheadT = THREE.MathUtils.clamp(t + LOOK_AHEAD_YEARS / getLayout().slotsLength, 0, 1)
+    path.curve.getPointAt(lookAheadT, _lookTarget)
 
     _right.crossVectors(_tangent, _worldUp).normalize()
     _up.crossVectors(_right, _tangent).normalize()

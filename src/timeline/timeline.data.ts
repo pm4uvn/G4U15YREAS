@@ -25,5 +25,6 @@ export const YEARS: YearEntry[] = [
 ]
 
 export const YEAR_COUNT = YEARS.length
+
 export const FIRST_YEAR = YEARS[0].year
 export const LAST_YEAR = YEARS[YEARS.length - 1].year

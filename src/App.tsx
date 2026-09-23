@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { AdaptiveDpr, PerformanceMonitor } from '@react-three/drei'
 import { Experience } from './experience/Experience'
@@ -8,12 +8,19 @@ import { Navigation } from './ui/Navigation'
 import { YearIndicator } from './ui/YearIndicator'
 import { SoundToggle } from './ui/SoundToggle'
 import { FallbackTimeline } from './ui/FallbackTimeline'
+import { YearMemoryLayer } from './memories/YearMemoryLayer'
 import { initTimelineController } from './timeline/TimelineController'
 import { useExperienceStore } from './store/experienceStore'
-import { YEAR_COUNT } from './timeline/timeline.data'
+import { refreshJourneyCounts, useJourneyLayout } from './timeline/journey'
 import { checkWebglSupport, getAdaptiveDpr } from './utils/device'
 
+const MemoryDetailModal = lazy(() => import('./memories/MemoryDetailModal'))
+const AddMemoryModal = lazy(() => import('./memories/AddMemoryModal'))
+
 export default function App() {
+  const memoryOpen = useExperienceStore((s) => s.memoryView !== null)
+  const addOpen = useExperienceStore((s) => s.addMemoryYear !== null)
+  const layout = useJourneyLayout()
   const webglSupported = useExperienceStore((s) => s.webglSupported)
   const setWebglSupported = useExperienceStore((s) => s.setWebglSupported)
   const [dprRange] = useState(getAdaptiveDpr)
@@ -21,6 +28,11 @@ export default function App() {
   useEffect(() => {
     setWebglSupported(checkWebglSupport())
   }, [setWebglSupported])
+
+  // Measure how many memories each year holds so the strings can lengthen to fit them.
+  useEffect(() => {
+    void refreshJourneyCounts()
+  }, [])
 
   useEffect(() => {
     if (!webglSupported) return
@@ -37,7 +49,7 @@ export default function App() {
       <LoadingScreen />
 
       {/* Drives Lenis's scroll range — the 3D scene itself is a fixed overlay. */}
-      <div className="scroll-spacer" style={{ height: `${(YEAR_COUNT + 1) * 100}vh` }} aria-hidden="true" />
+      <div className="scroll-spacer" style={{ height: `${(layout.slotsLength + 1) * 100}vh` }} aria-hidden="true" />
 
       <div className="canvas-layer">
         <Canvas
@@ -58,8 +70,13 @@ export default function App() {
         <Intro />
         <Navigation />
         <YearIndicator />
+        <YearMemoryLayer />
         <SoundToggle />
       </div>
+      <Suspense fallback={null}>
+        {memoryOpen && <MemoryDetailModal />}
+        {addOpen && <AddMemoryModal />}
+      </Suspense>
     </>
   )
 }
