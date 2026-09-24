@@ -8,6 +8,7 @@ import { Navigation } from './ui/Navigation'
 import { YearIndicator } from './ui/YearIndicator'
 import { SoundToggle } from './ui/SoundToggle'
 import { FallbackTimeline } from './ui/FallbackTimeline'
+import { MessageTicker } from './ui/MessageTicker'
 import { YearMemoryLayer } from './memories/YearMemoryLayer'
 import { initTimelineController } from './timeline/TimelineController'
 import { useExperienceStore } from './store/experienceStore'
@@ -71,6 +72,7 @@ export default function App() {
         <Navigation />
         <YearIndicator />
         <YearMemoryLayer />
+        <MessageTicker />
         <SoundToggle />
       </div>
       <Suspense fallback={null}>

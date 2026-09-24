@@ -4,6 +4,7 @@ import { useJourneyLayout } from '../timeline/journey'
 import { YEARS, YEAR_COUNT } from '../timeline/timeline.data'
 import { loadMore, useMemoriesByYear } from '../memories/hooks/useMemoriesByYear'
 import { MemoryNode } from './MemoryNode'
+import { isPhoneLayout } from '../utils/device'
 
 /** Memories are mounted only for the active year and its neighbours; the rest stay unloaded. */
 const YEARS_AROUND = 1
@@ -33,7 +34,7 @@ function YearMemories({ yearIndex }: { yearIndex: number }) {
         // Memories begin a little way past the year's fret so the first ones arrive at a comfortable
         // distance from the camera instead of right on top of it.
         const slot = start + (LEAD + (1 - LEAD) * ((k + 1) / (n + 1))) * span
-        return <MemoryNode key={memory.id} memory={memory} slot={slot} side={k % 2 === 0 ? -1 : 1} />
+        return <MemoryNode key={memory.id} memory={memory} slot={slot} side={isPhoneLayout() || k % 2 === 0 ? -1 : 1} />
       })}
     </>
   )

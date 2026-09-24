@@ -7,6 +7,11 @@ import { prefersReducedMotion } from '../utils/device'
 import { getLayout } from '../timeline/journey'
 
 const PULL_BACK = 1.7
+const BASE_FOV = 50
+// A portrait phone has a very narrow horizontal view, which hides memories hung on the far side of
+// the strings. Below this horizontal angle the vertical fov is opened up to keep both sides in frame.
+const MIN_HORIZONTAL_FOV = THREE.MathUtils.degToRad(60)
+const MAX_FOV = 96
 // A small forward lean in years, not a fixed distance — at rest (t=0) this
 // must stay well inside year 2011's own active window, otherwise the camera
 // centers on 2012's node before the user has scrolled anywhere.
@@ -28,7 +33,17 @@ const _worldUp = new THREE.Vector3(0, 1, 0)
 export function CameraRig() {
   const currentRoll = useRef(0)
 
-  useFrame(({ camera }) => {
+  useFrame(({ camera, size }) => {
+    const cam = camera as THREE.PerspectiveCamera
+    const aspect = size.width / size.height
+    const wanted = Math.min(
+      MAX_FOV,
+      Math.max(BASE_FOV, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(MIN_HORIZONTAL_FOV / 2) / aspect))),
+    )
+    if (Math.abs(cam.fov - wanted) > 0.01) {
+      cam.fov = wanted
+      cam.updateProjectionMatrix()
+    }
     const { smoothProgress, velocity, smoothPointer } = getTimelineState()
     const t = THREE.MathUtils.clamp(smoothProgress, 0, 1)
 
