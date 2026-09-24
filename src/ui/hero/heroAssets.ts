@@ -16,6 +16,16 @@ export const HERO_ASSETS = {
   memoryCount: 12,
 } as const
 
+/** Responsive sources for a canvas layer: a 1280px file for phones, the full file elsewhere. */
+export function heroSources(src: string) {
+  return {
+    src,
+    srcSet: `${src.replace('.webp', '-1280.webp')} 1280w, ${src} 2560w`,
+    // On a phone the art is shown at roughly 400 CSS px wide before device pixel ratio, so the small file wins.
+    sizes: '(max-width: 720px) 400px, 100vw',
+  }
+}
+
 /** bg, road, guitar and particles are authored on one shared canvas of this size. */
 export const HERO_CANVAS = { width: 2560, height: 1440 } as const
 

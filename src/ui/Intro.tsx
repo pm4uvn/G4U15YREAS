@@ -8,7 +8,7 @@ import { AssetImage } from './hero/AssetImage'
 import { Guitar } from './hero/Guitar'
 import { FallbackBackdrop, FallbackParticles, FallbackRoad } from './hero/HeroFallbacks'
 import { HeroPhotos } from './hero/HeroPhotos'
-import { HERO_ASSETS, HERO_MILESTONES, ROAD_END, layerOverrideStyle } from './hero/heroAssets'
+import { HERO_ASSETS, HERO_MILESTONES, ROAD_END, heroSources, layerOverrideStyle } from './hero/heroAssets'
 import { useHeroDebug } from './hero/useHeroDebug'
 import { RoadMarkers } from './hero/RoadMarkers'
 import './hero/hero.css'
@@ -129,25 +129,26 @@ export function Intro() {
 
   return (
     <div ref={rootRef} className={`hero ${debug.className}`.trim()}>
+      <div className="hero-backfill" aria-hidden />
       <div className="hero-stage">
         <div ref={zoomRef} className="hero-stage__zoom">
           <Layer name="bg" depth={1.5}>
-            <AssetImage className="hero-art" style={layerOverrideStyle('bg')} src={HERO_ASSETS.background} priority fallback={<FallbackBackdrop />} />
+            <AssetImage className="hero-art" style={layerOverrideStyle('bg')} {...heroSources(HERO_ASSETS.background)} priority fallback={<FallbackBackdrop />} />
           </Layer>
           <Layer name="glow" depth={1}>
             <div className="hero-glow" />
           </Layer>
           <Layer name="road" depth={0.4}>
-            <AssetImage className="hero-art" style={layerOverrideStyle('road')} src={HERO_ASSETS.road} fallback={<FallbackRoad />} />
+            <AssetImage className="hero-art" style={layerOverrideStyle('road')} {...heroSources(HERO_ASSETS.road)} fallback={<FallbackRoad />} />
           </Layer>
           <Layer name="guitar" depth={5}>
-            <AssetImage className="hero-art" style={layerOverrideStyle('guitar')} src={HERO_ASSETS.guitar} fallback={<Guitar />} />
+            <AssetImage className="hero-art" style={layerOverrideStyle('guitar')} {...heroSources(HERO_ASSETS.guitar)} fallback={<Guitar />} />
           </Layer>
           <Layer name="photos">
             <HeroPhotos />
           </Layer>
           <Layer name="particles" depth={8}>
-            <AssetImage className="hero-art" style={layerOverrideStyle('particles')} src={HERO_ASSETS.particles} fallback={<FallbackParticles />} />
+            <AssetImage className="hero-art" style={layerOverrideStyle('particles')} {...heroSources(HERO_ASSETS.particles)} fallback={<FallbackParticles />} />
           </Layer>
           <Layer name="markers" depth={0.4}>
             <RoadMarkers onSelect={enter} />

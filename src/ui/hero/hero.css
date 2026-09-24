@@ -10,6 +10,11 @@
   --pf: 0.8; /* parallax amplitude multiplier */
 }
 
+/* Phones only: the 16:9 stage leaves the top of a portrait screen bare, so the sky is carried up to fill it. */
+.hero-backfill {
+  display: none;
+}
+
 /* ---------- Stage: a 16:9 canvas that covers the viewport, so every layer stays registered ---------- */
 
 .hero-stage {
@@ -490,6 +495,15 @@
 /* ---------- Mobile: a re-composed scene, not a shrunken desktop ---------- */
 
 @media (max-width: 720px) {
+  .hero-backfill {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(to bottom, #050507 0%, rgba(5, 5, 7, 0) 24%, rgba(5, 5, 7, 0) 60%, #050507 100%),
+      radial-gradient(120% 60% at 50% 100%, rgba(150, 100, 50, 0.32), rgba(150, 100, 50, 0) 70%),
+      linear-gradient(to bottom, #0a0c16 0%, #14101a 55%, #1c1410 100%);
+  }
   .hero-stage {
     left: -8%;
     top: auto;
