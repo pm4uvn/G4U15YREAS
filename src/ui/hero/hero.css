@@ -509,19 +509,66 @@
 /* ---------- Mobile: a re-composed scene, not a shrunken desktop ---------- */
 
 @media (max-width: 720px) {
+  /* The sky above the 16:9 stage is the artwork's own top edge mirrored, so the join is seamless and
+     nothing needs blurring or masking (both are costly on a phone GPU). Sizes match .hero-stage below. */
   .hero-backfill {
     display: block;
     position: absolute;
-    inset: -4%;
+    left: -8%;
+    bottom: 64svh;
+    width: 113.78svh;
+    height: 36svh;
+    transform: scaleY(-1);
     background:
-      linear-gradient(to bottom, rgba(5, 5, 7, 0.35), rgba(5, 5, 7, 0) 40%),
-      url('/hero/hero-bg-1280.webp') 50% 0 / cover no-repeat;
-    filter: blur(10px) saturate(1.05);
+      linear-gradient(to top, rgba(5, 5, 7, 0.55), rgba(5, 5, 7, 0) 65%),
+      url('/hero/hero-bg-1280.webp') 0 0 / 100% 64svh no-repeat;
   }
-  /* The stage's top edge dissolves into the backfill instead of ending in a hard line. */
+
+  /* Phone paint budget: no filters, blend modes or masks on the moving layers, and the photo cards
+     hold still apart from their crossfade. */
+  .hero-layer--bg,
+  .hero-layer--road,
+  .hero-layer--guitar,
+  .hero-layer--particles {
+    filter: none;
+  }
+  .hero-layer--bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+  }
+  .hero-layer--guitar {
+    opacity: 0.78;
+  }
+  .hero-layer--road {
+    opacity: 0.7;
+  }
+  .hero-layer--particles {
+    mix-blend-mode: normal;
+    opacity: 0.22;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .hero-card {
+    filter: none;
+  }
+  .hero-card__float {
+    animation: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .hero-card__photo {
+    filter: none;
+  }
+  .hero-card__float::after {
+    mix-blend-mode: normal;
+    opacity: 0.5;
+  }
+  .hero-ember {
+    animation: none;
+  }
   .hero-stage {
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
-    mask-image: linear-gradient(to bottom, transparent 0, #000 22%);
     left: -8%;
     top: auto;
     bottom: 0;

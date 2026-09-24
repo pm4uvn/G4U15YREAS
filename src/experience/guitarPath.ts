@@ -121,3 +121,13 @@ export function sampleStringPoints(path: JourneyPath, sideOffset: number): THREE
 export function sampleNeckEdge(path: JourneyPath, side: -1 | 1): THREE.Vector3[] {
   return sampleOffsetLine(path, side * (NECK_WIDTH / 2))
 }
+
+/**
+ * Which way the strings sweep on screen around a slot: +1 when they run toward the right as they
+ * recede, -1 toward the left. The helix reverses this every few slots, and the layout follows it,
+ * hanging memories on the open side and the words on the other.
+ */
+export function pathLean(path: JourneyPath, slot: number): 1 | -1 {
+  const at = (s: number) => path.curve.getPointAt(THREE.MathUtils.clamp(s / path.slotsLength, 0, 1))
+  return at(slot + 1.5).x >= at(slot - 1).x ? 1 : -1
+}

@@ -29,6 +29,6 @@ export function checkWebglSupport(): boolean {
 }
 
 export function getAdaptiveDpr(): [number, number] {
-  const max = isMobileViewport() ? 1.5 : 2
+  const max = isMobileViewport() ? 1.25 : 2
   return [1, Math.min(max, isBrowser ? window.devicePixelRatio : 1)]
 }

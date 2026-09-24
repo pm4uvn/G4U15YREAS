@@ -13,7 +13,7 @@ import { YearMemoryLayer } from './memories/YearMemoryLayer'
 import { initTimelineController } from './timeline/TimelineController'
 import { useExperienceStore } from './store/experienceStore'
 import { refreshJourneyCounts, useJourneyLayout } from './timeline/journey'
-import { checkWebglSupport, getAdaptiveDpr } from './utils/device'
+import { checkWebglSupport, getAdaptiveDpr, isMobileViewport } from './utils/device'
 
 const MemoryDetailModal = lazy(() => import('./memories/MemoryDetailModal'))
 const AddMemoryModal = lazy(() => import('./memories/AddMemoryModal'))
@@ -56,7 +56,7 @@ export default function App() {
         <Canvas
           dpr={dprRange}
           camera={{ fov: 50, near: 0.1, far: 400, position: [0, 0.35, 5.2] }}
-          gl={{ antialias: true, powerPreference: 'high-performance' }}
+          gl={{ antialias: !isMobileViewport(), powerPreference: 'high-performance' }}
         >
           <PerformanceMonitor>
             <AdaptiveDpr pixelated={false} />

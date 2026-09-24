@@ -20,16 +20,31 @@
 .ticker.is-visible {
   opacity: 1;
 }
-/* Scroll-driven: the script moves the track up as the camera passes a memory. */
+/* Scroll-driven: the script slides the column so the memory being passed sits mid-strip. */
 .ticker__track {
-  padding-top: 70svh;
-  will-change: transform, opacity;
+  will-change: transform;
 }
-/* Between memories, the year's own words simply rest in the strip. */
+/* Between memories (or before any exist), the year's own words rest in the strip. */
 .ticker__track.is-static {
   padding-top: 24svh;
-  transform: none;
+}
+.ticker__entry {
+  margin-bottom: 2.2rem;
+  opacity: 0.16;
+  transition: opacity 0.5s ease;
+}
+.ticker__entry.is-near {
+  opacity: 0.4;
+}
+.ticker__entry.is-current {
   opacity: 1;
+}
+.ticker__entry .ticker__memory {
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .ticker__year {
   margin: 0 0 0.6rem;
@@ -62,7 +77,35 @@
   color: rgba(232, 226, 214, 0.7);
 }
 
+/* On the other side when the strings sweep the other way; it fades in fresh after each swap. */
+.ticker[data-side='left'] {
+  right: auto;
+  left: 0;
+  bottom: 24svh;
+  padding: 0 0.4rem 0 3rem;
+  text-align: left;
+}
+.ticker__track {
+  animation: ticker-swap 0.6s ease both;
+}
+.ticker[data-side='left'] .ticker__track {
+  animation-name: ticker-swap-left;
+}
+@keyframes ticker-swap {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ticker-swap-left {
+  from {
+    opacity: 0;
+  }
+}
+
 @media (max-width: 720px) {
+  .ticker[data-side='left'] {
+    padding: 0 0.4rem 0 1.1rem;
+  }
   .ticker {
     width: 40vw;
     padding: 0 1.1rem 0 0.4rem;

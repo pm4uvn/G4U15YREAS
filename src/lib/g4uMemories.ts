@@ -214,3 +214,42 @@ export async function fetchYearCounts(): Promise<Record<number, number>> {
   for (const row of data as { year: number }[]) counts[row.year] = (counts[row.year] ?? 0) + 1
   return counts
 }
+
+export interface MemoryText {
+  id: string
+  year: number
+  title: string | null
+  content: string | null
+  author: string | null
+  memoryDate: string | null
+  createdAt: string
+  location: string | null
+}
+
+/**
+ * The words of every published memory, text only, in the same order the 3D field places them
+ * (year, then date, then creation time) so each one can be matched to its card.
+ */
+export async function fetchAllMemoryTexts(): Promise<MemoryText[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('g4u_memories')
+    .select('id, year, title, content, author_name, memory_date, created_at, location')
+    .eq('status', 'published')
+    .is('deleted_at', null)
+    .order('year', { ascending: true })
+    .order('memory_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true })
+    .limit(5000)
+  if (error) throw toMemoryError(error)
+  return (data as Record<string, string | number | null>[]).map((r) => ({
+    id: r.id as string,
+    year: r.year as number,
+    title: r.title as string | null,
+    content: r.content as string | null,
+    author: r.author_name as string | null,
+    memoryDate: r.memory_date as string | null,
+    createdAt: r.created_at as string,
+    location: r.location as string | null,
+  }))
+}

@@ -4,6 +4,7 @@ import { useJourneyLayout } from '../timeline/journey'
 import { YEARS, YEAR_COUNT } from '../timeline/timeline.data'
 import { loadMore, useMemoriesByYear } from '../memories/hooks/useMemoriesByYear'
 import { MemoryNode } from './MemoryNode'
+import { pathLean, useJourneyPath } from './guitarPath'
 
 /** Memories are mounted only for the active year and its neighbours; the rest stay unloaded. */
 const YEARS_AROUND = 1
@@ -14,6 +15,7 @@ const LEAD = 0.35
 function YearMemories({ yearIndex }: { yearIndex: number }) {
   const year = YEARS[yearIndex].year
   const layout = useJourneyLayout()
+  const path = useJourneyPath()
   const { items, hasMore, loadingMore } = useMemoriesByYear(year)
 
   // The 3D field shows every memory, not just the first page — keep paging until the year is complete.
@@ -29,11 +31,11 @@ function YearMemories({ yearIndex }: { yearIndex: number }) {
   return (
     <>
       {items.map((memory, k) => {
-        // Spread the year's memories evenly across its stretch of neck, on the left of the strings.
+        // Spread the year's memories evenly across its stretch of neck, on whichever side of the strings is open at that point.
         // Memories begin a little way past the year's fret so the first ones arrive at a comfortable
         // distance from the camera instead of right on top of it.
         const slot = start + (LEAD + (1 - LEAD) * ((k + 1) / (n + 1))) * span
-        return <MemoryNode key={memory.id} memory={memory} slot={slot} side={-1} />
+        return <MemoryNode key={memory.id} memory={memory} slot={slot} side={-pathLean(path, slot) as -1 | 1} />
       })}
     </>
   )
