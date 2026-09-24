@@ -1,80 +1,71 @@
 .ticker {
-  display: none;
+  display: block;
+  position: fixed;
+  z-index: 2;
+  right: 0;
+  top: 16svh;
+  bottom: 14svh;
+  width: min(24rem, 40vw);
+  padding: 0 5rem 0 0.4rem; /* clears the year navigation on wide screens */
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
+  font-family: var(--serif);
+  text-align: right;
+  color: var(--fg);
+}
+.ticker.is-visible {
+  opacity: 1;
+}
+/* Scroll-driven: the script moves the track up as the camera passes a memory. */
+.ticker__track {
+  padding-top: 70svh;
+  will-change: transform, opacity;
+}
+/* Between memories, the year's own words simply rest in the strip. */
+.ticker__track.is-static {
+  padding-top: 24svh;
+  transform: none;
+  opacity: 1;
+}
+.ticker__year {
+  margin: 0 0 0.6rem;
+  font-size: 1.9rem;
+  line-height: 1;
+  color: var(--accent);
+}
+.ticker__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+}
+.ticker__sub {
+  margin: 0 0 1rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.ticker__quote {
+  margin: 0 0 1.4rem;
+  font-size: 0.95rem;
+  font-style: italic;
+  line-height: 1.45;
+  color: rgba(232, 226, 214, 0.85);
+}
+.ticker__memory {
+  margin: 0 0 1.3rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: rgba(232, 226, 214, 0.7);
 }
 
 @media (max-width: 720px) {
   .ticker {
-    display: block;
-    position: fixed;
-    z-index: 2;
-    right: 0;
-    top: 16svh;
-    bottom: 14svh;
     width: 40vw;
     padding: 0 1.1rem 0 0.4rem;
-    overflow: hidden;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.8s ease;
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
-    mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
-    font-family: var(--serif);
-    text-align: right;
-    color: var(--fg);
-  }
-  .ticker.is-visible {
-    opacity: 1;
-  }
-  .ticker__track {
-    animation: ticker-up linear infinite;
-    will-change: transform;
-  }
-  .ticker__copy {
-    padding-bottom: 6svh;
-  }
-  .ticker__year {
-    margin: 0 0 0.6rem;
-    font-size: 1.9rem;
-    line-height: 1;
-    color: var(--accent);
-  }
-  .ticker__title {
-    margin: 0 0 0.35rem;
-    font-size: 1.05rem;
-    letter-spacing: 0.04em;
-  }
-  .ticker__sub {
-    margin: 0 0 1rem;
-    font-size: 0.78rem;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-  }
-  .ticker__quote {
-    margin: 0 0 1.4rem;
-    font-size: 0.95rem;
-    font-style: italic;
-    line-height: 1.45;
-    color: rgba(232, 226, 214, 0.85);
-  }
-  .ticker__memory {
-    margin: 0 0 1.3rem;
-    font-size: 0.85rem;
-    line-height: 1.55;
-    color: rgba(232, 226, 214, 0.7);
   }
 }
 
-@keyframes ticker-up {
-  from {
-    transform: translateY(20svh);
-  }
-  to {
-    transform: translateY(calc(-50% + 20svh));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ticker__track {
-    animation: none;
-  }
-}

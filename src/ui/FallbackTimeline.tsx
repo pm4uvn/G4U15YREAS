@@ -8,7 +8,7 @@ export function FallbackTimeline() {
         <p className="fallback__kicker">G4U · Guitar For You</p>
         <h1>G4U — 15 Years</h1>
         <p className="fallback__range">2011 — 2026</p>
-        <p className="fallback__tagline">Every year has a song. Every memory has a story.</p>
+        <p className="fallback__tagline">Nếu cuộc đời này không rực rỡ thì sao? Miễn là những năm tháng ấy, chúng ta đã từng có nhau.</p>
       </header>
 
       <ol className="fallback__list">

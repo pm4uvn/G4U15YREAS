@@ -441,14 +441,28 @@
   text-shadow: 0 1px 14px rgba(0, 0, 0, 0.75);
 }
 .hero__tagline {
-  margin: 0 0 2.4rem;
-  max-width: 32rem;
+  margin: 0 0 1.4rem;
+  max-width: 40rem;
   font-family: var(--serif);
   font-style: italic;
   font-size: clamp(0.95rem, 1.5vw, 1.2rem);
   line-height: 1.6;
   color: #e6dcc6;
   text-shadow: 0 1px 14px rgba(0, 0, 0, 0.8);
+}
+.hero__tagline span {
+  display: block;
+}
+/* The lettering art carries its own gold rim and glow; only a soft shadow lifts it off the sky. */
+.hero-quote {
+  display: block;
+  /* Sized by height so the logo, lettering and button always fit one screen. */
+  height: min(27.6svh, 16.8rem);
+  width: auto;
+  max-width: 84vw;
+  margin: 0 auto;
+  filter: drop-shadow(0 4px 14px rgba(20, 8, 12, 0.55));
+  user-select: none;
 }
 .hero__cta {
   appearance: none;

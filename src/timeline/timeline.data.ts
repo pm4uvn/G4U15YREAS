@@ -21,7 +21,7 @@ export const YEARS: YearEntry[] = [
   { year: 2023, title: 'Bigger Stages', subtitle: 'G4U steps into the spotlight.', quote: 'The applause got louder every year.', media: [] },
   { year: 2024, title: 'Passing It On', subtitle: 'Students become mentors.', quote: 'The next generation picked up the pick.', media: [] },
   { year: 2025, title: 'The Encore', subtitle: 'Fifteen years, almost here.', quote: 'One more song before the milestone.', media: [] },
-  { year: 2026, title: 'One G4U', subtitle: 'Fifteen years of music, together.', quote: 'Every year has a song. Every memory has a story.', media: [] },
+  { year: 2026, title: 'One G4U', subtitle: 'Fifteen years of music, together.', quote: 'Nếu cuộc đời này không rực rỡ thì sao? Miễn là những năm tháng ấy, chúng ta đã từng có nhau.', media: [] },
 ]
 
 export const YEAR_COUNT = YEARS.length

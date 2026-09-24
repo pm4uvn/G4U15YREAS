@@ -5,12 +5,6 @@ export function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-/** Portrait-phone layout: memories hang on one side and the other carries the message ticker. */
-export function isPhoneLayout(): boolean {
-  if (!isBrowser) return false
-  return window.innerWidth <= 720
-}
-
 export function isMobileViewport(): boolean {
   if (!isBrowser) return false
   return window.innerWidth < 820

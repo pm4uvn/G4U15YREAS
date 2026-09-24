@@ -3,7 +3,6 @@ import { useStore } from 'zustand'
 import { fetchYearCounts } from '../lib/g4uMemories'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { YEARS, YEAR_COUNT } from './timeline.data'
-import { isPhoneLayout } from '../utils/device'
 
 /**
  * The journey is measured in "slots" (one slot = one stretch of guitar neck).
@@ -14,8 +13,8 @@ import { isPhoneLayout } from '../utils/device'
 /** An empty stretch of open strings before the first year. */
 export const LEAD_IN_SLOTS = 1
 
-/** How many memories fit along one slot (both sides of the strings together). */
-export const MEMORIES_PER_SLOT = 3
+/** How many memories fit along one slot; they hang on the left only, the right carries the message ticker. */
+export const MEMORIES_PER_SLOT = 1.5
 
 export interface JourneyLayout {
   /** Published memories per year. */
@@ -29,7 +28,7 @@ export interface JourneyLayout {
 }
 
 export function computeLayout(counts: Record<number, number>): JourneyLayout {
-  const spans = YEARS.map((y) => Math.max(1, Math.ceil((counts[y.year] ?? 0) / (isPhoneLayout() ? MEMORIES_PER_SLOT / 2 : MEMORIES_PER_SLOT))))
+  const spans = YEARS.map((y) => Math.max(1, Math.ceil((counts[y.year] ?? 0) / MEMORIES_PER_SLOT)))
   const starts: number[] = []
   let slot = LEAD_IN_SLOTS
   for (const span of spans) {

@@ -193,7 +193,19 @@ export function Intro() {
         <p className="hero__kicker hero-enter">G4U · Guitar For You</p>
         <p className="hero__range hero-enter">2011 — 2026</p>
         <p className="hero__tagline hero-enter">
-          <span>Every year has a song.</span> <span>Every memory has a story.</span>
+          <AssetImage
+            className="hero-quote"
+            {...heroSources(HERO_ASSETS.quote, 640)}
+            sizes="(max-width: 720px) 84vw, 530px"
+            alt="Nếu cuộc đời này không rực rỡ thì sao? Miễn là những năm tháng ấy, chúng ta đã từng có nhau."
+            fallback={
+              <>
+                <span>Nếu cuộc đời này không rực rỡ thì sao?</span>
+                <span>Miễn là những năm tháng ấy,</span>
+                <span>chúng ta đã từng có nhau.</span>
+              </>
+            }
+          />
         </p>
         <button type="button" className="hero__cta hero-enter" onClick={() => enter(0)}>
           Enter the Journey

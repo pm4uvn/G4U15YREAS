@@ -12,15 +12,16 @@ export const HERO_ASSETS = {
   guitar: '/hero/hero-guitar.webp',
   particles: '/hero/hero-particles.webp',
   logo: '/hero/logo-g15-gold.png',
+  quote: '/hero/hero-quote-v2.webp',
   memory: (n: number) => `/memories/memory-${String(n).padStart(2, '0')}.webp`,
   memoryCount: 12,
 } as const
 
 /** Responsive sources for a canvas layer: a 1280px file for phones, the full file elsewhere. */
-export function heroSources(src: string) {
+export function heroSources(src: string, smallWidth = 1280) {
   return {
     src,
-    srcSet: `${src.replace('.webp', '-1280.webp')} 1280w, ${src} 2560w`,
+    srcSet: `${src.replace('.webp', `-${smallWidth}.webp`)} ${smallWidth}w, ${src} ${smallWidth * 2}w`,
     // On a phone the art is shown at roughly 400 CSS px wide before device pixel ratio, so the small file wins.
     sizes: '(max-width: 720px) 400px, 100vw',
   }
