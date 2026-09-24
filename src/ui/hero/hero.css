@@ -10,11 +10,6 @@
   --pf: 0.8; /* parallax amplitude multiplier */
 }
 
-/* Phones only: the 16:9 stage leaves the top of a portrait screen bare, so the sky is carried up to fill it. */
-.hero-backfill {
-  display: none;
-}
-
 /* ---------- Stage: a 16:9 canvas that covers the viewport, so every layer stays registered ---------- */
 
 .hero-stage {
@@ -509,21 +504,6 @@
 /* ---------- Mobile: a re-composed scene, not a shrunken desktop ---------- */
 
 @media (max-width: 720px) {
-  /* The sky above the 16:9 stage is the artwork's own top edge mirrored, so the join is seamless and
-     nothing needs blurring or masking (both are costly on a phone GPU). Sizes match .hero-stage below. */
-  .hero-backfill {
-    display: block;
-    position: absolute;
-    left: -8%;
-    bottom: 64svh;
-    width: 113.78svh;
-    height: 36svh;
-    transform: scaleY(-1);
-    background:
-      linear-gradient(to top, rgba(5, 5, 7, 0.55), rgba(5, 5, 7, 0) 65%),
-      url('/hero/hero-bg-1280.webp') 0 0 / 100% 64svh no-repeat;
-  }
-
   /* Phone paint budget: no filters, blend modes or masks on the moving layers, and the photo cards
      hold still apart from their crossfade. */
   .hero-layer--bg,
@@ -568,12 +548,14 @@
   .hero-ember {
     animation: none;
   }
+  /* One copy of the artwork at full screen height. The 16:9 canvas is wider than a phone, so only a
+     window of it shows; --hero-anchor picks where (0 = left edge, guitar side; 0.5 = centre). */
   .hero-stage {
-    left: -8%;
-    top: auto;
-    bottom: 0;
-    width: 113.78svh;
-    height: 64svh;
+    --hero-anchor: 0.2;
+    left: calc(var(--hero-anchor) * -177.78svh);
+    top: 0;
+    width: 177.78svh;
+    height: 100svh;
     transform: none;
   }
   .road-markers,

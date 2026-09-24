@@ -129,7 +129,6 @@ export function Intro() {
 
   return (
     <div ref={rootRef} className={`hero ${debug.className}`.trim()}>
-      <div className="hero-backfill" aria-hidden />
       <div className="hero-stage">
         <div ref={zoomRef} className="hero-stage__zoom">
           <Layer name="bg" depth={1.5}>
