@@ -178,12 +178,17 @@ export function initTimelineController() {
     if (state.layout.slotsLength === prev.layout.slotsLength) return
     const slot = timelineStore.getState().smoothProgress * prev.layout.slotsLength
     const t = Math.min(1, slot / state.layout.slotsLength)
-    timelineStore.setState({ rawProgress: t, smoothProgress: t })
+    // Only the target (rawProgress) moves here — smoothProgress is left for the normal per-frame
+    // damping in tick() to ease toward it, same as any other scroll. Forcing it to `t` outright,
+    // and force-snapping Lenis's own scroll position in the same instant, used to fight whatever
+    // eased scrollTo was already mid-flight (e.g. the "Enter the Journey" hand-off) and abort it
+    // with a visible pop the moment memory counts finished loading in behind it.
+    timelineStore.setState({ rawProgress: t })
     // The scroll spacer resizes on the next render; wait for it before repositioning Lenis.
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         lenis?.resize()
-        lenis?.scrollTo(t * (lenis?.limit ?? 0), { immediate: true, force: true })
+        lenis?.scrollTo(t * (lenis?.limit ?? 0), { duration: 0.8, easing: (x: number) => 1 - Math.pow(1 - x, 3) })
       }),
     )
   })
@@ -225,5 +230,16 @@ export function initTimelineController() {
 export function scrollToYearIndex(index: number) {
   if (!lenis || !isBrowser) return
   const target = yearIndexToT(index) * lenis.limit
+  lenis.scrollTo(target, { duration: 1.6, easing: (t: number) => 1 - Math.pow(1 - t, 4) })
+}
+
+/**
+ * Scrolls to the very start of the journey proper — just past the hero fade, where the "WELCOME
+ * TO THE G4U JOURNEY" lettering begins — rather than year 2011's own fret (scrollToYearIndex(0)),
+ * which skips over that lead-in stretch of open neck entirely.
+ */
+export function scrollToStart() {
+  if (!lenis || !isBrowser) return
+  const target = getHeroFadeEnd() * lenis.limit
   lenis.scrollTo(target, { duration: 1.6, easing: (t: number) => 1 - Math.pow(1 - t, 4) })
 }

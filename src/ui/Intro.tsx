@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, type R
 import { gsap } from '../animation/gsap'
 import { startAmbient } from '../audio/ambientEngine'
 import { useExperienceStore } from '../store/experienceStore'
-import { timelineStore, scrollToYearIndex } from '../timeline/TimelineController'
+import { timelineStore, scrollToStart, scrollToYearIndex } from '../timeline/TimelineController'
 import { getHeroFadeEnd } from '../timeline/journey'
 import { YEARS } from '../timeline/timeline.data'
 import { isCoarsePointer, prefersReducedMotion } from '../utils/device'
@@ -111,16 +111,22 @@ export function Intro() {
     return () => ctx.revert()
   }, [])
 
-  /** Cinematic hand-off: copy fades, logo settles back, the road brightens and the scene pushes toward it, then the year opens. */
-  const enter = useCallback((yearIndex: number) => {
+  /**
+   * Cinematic hand-off: copy fades, logo settles back, the road brightens and the scene pushes
+   * toward it, then the journey opens. `target: 'start'` (the main CTA) lands just past the hero
+   * fade, at the "WELCOME TO THE G4U JOURNEY" lettering; a year index (a milestone) jumps to that
+   * year's own fret instead.
+   */
+  const enter = useCallback((target: number | 'start') => {
     const root = rootRef.current
     const zoom = zoomRef.current
     if (!root || !zoom || entered.current) return
     // Sound defaults on, but a browser only allows starting audio from within a real click like
     // this one — never on page load itself. Someone who turned it off with the toggle stays off.
     if (useExperienceStore.getState().soundOn) startAmbient()
+    const scrollToTarget = () => (target === 'start' ? scrollToStart() : scrollToYearIndex(target))
     if (prefersReducedMotion()) {
-      scrollToYearIndex(yearIndex)
+      scrollToTarget()
       return
     }
     entered.current = true
@@ -129,7 +135,7 @@ export function Intro() {
       .to('.hero-logo-wrap', { scale: 0.94, opacity: 0, duration: 0.75 }, 0)
       .to(root.querySelector('.hero-layer--road'), { '--road-glow': 2.2, duration: 0.9 }, 0)
       .to(zoom, { scale: 1.16, transformOrigin: `${ROAD_END.x}% ${ROAD_END.y}%`, duration: 1.5 }, 0.05)
-      .call(() => scrollToYearIndex(yearIndex), [], 0.7)
+      .call(scrollToTarget, [], 0.7)
   }, [])
 
   return (
@@ -147,6 +153,9 @@ export function Intro() {
           </Layer>
           <Layer name="guitar" depth={5}>
             <AssetImage className="hero-art" style={layerOverrideStyle('guitar')} {...heroSources(HERO_ASSETS.guitar)} fallback={<Guitar />} />
+          </Layer>
+          <Layer name="friends" depth={2}>
+            <AssetImage className="hero-friends" {...heroSources(HERO_ASSETS.friends, 900)} alt="" />
           </Layer>
           <Layer name="photos">
             <HeroPhotos />
@@ -211,7 +220,7 @@ export function Intro() {
             }
           />
         </p>
-        <button type="button" className="hero__cta hero-enter" onClick={() => enter(0)}>
+        <button type="button" className="hero__cta hero-enter" onClick={() => enter('start')}>
           Enter the Journey
           <span className="hero__cta-arrow" aria-hidden="true">
             →

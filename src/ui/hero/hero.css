@@ -81,6 +81,21 @@
   opacity: 0.9;
   filter: brightness(0.7) contrast(1.06) drop-shadow(0 0 10px rgba(240, 181, 82, 0.16));
 }
+/* Friends: a warm-rimmed group silhouette anchored to the bottom, behind the copy. Sized on its
+   own (not the shared bg/road/guitar canvas) since it's an independent cutout, not a registered layer. */
+.hero-layer--friends .hero-layer__in {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.hero-friends {
+  position: relative;
+  width: min(64rem, 92%);
+  height: auto;
+  opacity: 0.85;
+  filter: brightness(0.85) saturate(1.05) drop-shadow(0 0 22px rgba(240, 130, 60, 0.14));
+  user-select: none;
+}
 .hero-layer--particles {
   mix-blend-mode: screen;
   opacity: 0.3;
@@ -509,8 +524,14 @@
   .hero-layer--bg,
   .hero-layer--road,
   .hero-layer--guitar,
-  .hero-layer--particles {
+  .hero-layer--particles,
+  .hero-friends {
     filter: none;
+  }
+  /* Smaller and lower, so it sits below the lettering artwork instead of fighting it for room. */
+  .hero-friends {
+    width: min(30rem, 82%);
+    opacity: 0.6;
   }
   .hero-layer--bg::after {
     content: '';

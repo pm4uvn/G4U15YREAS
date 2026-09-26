@@ -13,6 +13,7 @@ export const HERO_ASSETS = {
   particles: '/hero/hero-particles.webp',
   logo: '/hero/logo-g15-gold.png',
   quote: '/hero/hero-quote-v2.webp',
+  friends: '/hero/hero-friends-v3.webp',
   memory: (n: number) => `/memories/memory-${String(n).padStart(2, '0')}.webp`,
   memoryCount: 12,
 } as const
