@@ -219,6 +219,14 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
   const btnScale = useRef(1)
   const btnGroup = useRef<THREE.Group>(null)
   const tex = useCoverTexture(cover, near)
+  // A memory with several photos reads as a small stack, with a count badge in the corner.
+  const photoCount = useMemo(() => memory.media.filter((m) => m.mediaType === 'image').length, [memory.media])
+  const isAlbum = photoCount > 1
+  const stackMat1 = useRef<THREE.MeshBasicMaterial>(null)
+  const stackMat2 = useRef<THREE.MeshBasicMaterial>(null)
+  const badgeDiscMat = useRef<THREE.MeshBasicMaterial>(null)
+  const badgeRingMat = useRef<THREE.MeshBasicMaterial>(null)
+  const badgeText = useRef<{ fillOpacity: number } | null>(null)
 
   const layout = useMemo(() => {
     const t = slot / path.slotsLength
@@ -298,6 +306,11 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
     if (frameMat.current) frameMat.current.opacity = alpha * 0.35
     if (photoMat.current) photoMat.current.opacity = alpha
     if (shadowMat.current) shadowMat.current.opacity = alpha * 0.55
+    if (stackMat1.current) stackMat1.current.opacity = alpha * 0.3
+    if (stackMat2.current) stackMat2.current.opacity = alpha * 0.22
+    if (badgeDiscMat.current) badgeDiscMat.current.opacity = alpha * 0.85
+    if (badgeRingMat.current) badgeRingMat.current.opacity = alpha * 0.9
+    if (badgeText.current) badgeText.current.fillOpacity = alpha
     if (leaderRef.current) leaderRef.current.material.opacity = reveal * passing * appear.current * 0.16
     // quote 0.9 · play mark 0.9 · title 0.75 · author 0.45
     const factors = [0.9, 0.9, 0.75, 0.45, 0.85, 0.7]
@@ -362,6 +375,20 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
                 <meshBasicMaterial ref={shadowMat} map={getShadowTexture()} color="#000000" transparent opacity={0} depthWrite={false} toneMapped={false} />
               </mesh>
 
+              {/* A memory with several photos: two more edges peek out behind the top one, like a stack of prints. */}
+              {isAlbum && (
+                <>
+                  <mesh position={[0.16, -0.18, -0.07]} rotation={[0, 0, -0.05]}>
+                    <planeGeometry args={[w * 0.94, h * 0.94]} />
+                    <meshBasicMaterial ref={stackMat2} color={GOLD} transparent opacity={0} toneMapped={false} />
+                  </mesh>
+                  <mesh position={[0.09, -0.1, -0.05]} rotation={[0, 0, 0.03]}>
+                    <planeGeometry args={[w * 0.97, h * 0.97]} />
+                    <meshBasicMaterial ref={stackMat1} color={GOLD} transparent opacity={0} toneMapped={false} />
+                  </mesh>
+                </>
+              )}
+
               {/* Thin warm border, just outside the picture */}
               <mesh position={[0, 0, -0.01]} onClick={open} onPointerOver={over} onPointerOut={out}>
                 <planeGeometry args={[w + 0.05, h + 0.05]} />
@@ -372,6 +399,32 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
                 <planeGeometry args={[w, h]} />
                 <meshBasicMaterial key="photo" ref={photoMat} map={tex.texture} color="#ffffff" transparent opacity={0} toneMapped={false} />
               </mesh>
+
+              {isAlbum && (
+                <group position={[w / 2 - 0.32, h / 2 - 0.32, 0.06]} onClick={open} onPointerOver={over} onPointerOut={out}>
+                  <mesh>
+                    <circleGeometry args={[0.26, 32]} />
+                    <meshBasicMaterial ref={badgeDiscMat} color="#0b0805" transparent opacity={0} depthWrite={false} toneMapped={false} />
+                  </mesh>
+                  <mesh position={[0, 0, 0.005]}>
+                    <ringGeometry args={[0.245, 0.265, 32]} />
+                    <meshBasicMaterial ref={badgeRingMat} color={GOLD} transparent opacity={0} depthWrite={false} toneMapped={false} />
+                  </mesh>
+                  <Text
+                    ref={(el: never) => {
+                      badgeText.current = el
+                    }}
+                    position={[0, 0, 0.01]}
+                    fontSize={0.19}
+                    color={IVORY}
+                    anchorX="center"
+                    anchorY="middle"
+                    fillOpacity={0}
+                  >
+                    {photoCount}
+                  </Text>
+                </group>
+              )}
 
               {isVideo && (
                 <Text

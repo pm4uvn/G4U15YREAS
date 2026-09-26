@@ -3,6 +3,7 @@ import {
   ensureSession,
   insertMemory,
   toMemoryError,
+  type MemoryErrorCode,
   type NewMediaInput,
 } from '../../lib/g4uMemories'
 import { IMAGE_TYPES, LIMITS, processImage, removeObjects, uploadObject } from '../../lib/supabaseStorage'
@@ -49,6 +50,11 @@ export type SubmitState = 'idle' | 'submitting' | 'success'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const CONCURRENCY = 2
+/** Retried automatically — likely transient (a burst of concurrent requests, a dropped connection). */
+const RETRYABLE_CODES: ReadonlySet<MemoryErrorCode> = new Set(['unavailable', 'upload_failed', 'interrupted', 'unknown'])
+const RETRY_DELAYS_MS = [600, 1800]
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export function useCreateMemory(year: number) {
   const [items, setItems] = useState<UploadItem[]>([])
@@ -88,61 +94,82 @@ export function useCreateMemory(year: number) {
     }
   }, [])
 
-  const uploadItem = useCallback(
+  const uploadOnce = useCallback(
     async (item: UploadItem, userId: string, abortSignal: AbortSignal) => {
-      patchItem(item.id, { status: 'processing', progress: 0, error: undefined })
-      try {
-        const base = `${userId}/${memoryId.current}`
-        const n = pad(item.seq)
+      const base = `${userId}/${memoryId.current}`
+      const n = pad(item.seq)
 
-        if (item.kind === 'audio') {
-          const mime = item.file.type || 'audio/webm'
-          const path = `${base}/voice-${n}.${audioExtension(mime)}`
-          patchItem(item.id, { status: 'uploading' })
-          await uploadObject(path, item.file, mime, (f) => patchItem(item.id, { progress: f }), abortSignal)
-          patchItem(item.id, {
-            status: 'done',
-            progress: 1,
-            result: {
-              mediaType: 'audio',
-              storagePath: path,
-              thumbnailPath: null,
-              originalFilename: item.file.name,
-              mimeType: mime,
-              fileSize: item.file.size,
-              duration: Math.max(0.5, Math.min(item.seconds ?? 1, 300)),
-            },
-          })
-          return
-        }
-
-        const img = await processImage(item.file)
-        const mainPath = `${base}/photo-${n}.${img.ext}`
-        const thumbPath = `${base}/thumb-photo-${n}.webp`
-        patchItem(item.id, { status: 'uploading' })
-        await uploadObject(mainPath, img.blob, img.blob.type, (f) => patchItem(item.id, { progress: f }), abortSignal)
-        await uploadObject(thumbPath, img.thumb, img.thumb.type || 'image/webp', undefined, abortSignal)
+      if (item.kind === 'audio') {
+        const mime = item.file.type || 'audio/webm'
+        const path = `${base}/voice-${n}.${audioExtension(mime)}`
+        patchItem(item.id, { status: 'uploading', progress: 0 })
+        await uploadObject(path, item.file, mime, (f) => patchItem(item.id, { progress: f }), abortSignal)
         patchItem(item.id, {
           status: 'done',
           progress: 1,
           result: {
-            mediaType: 'image',
-            storagePath: mainPath,
-            thumbnailPath: thumbPath,
+            mediaType: 'audio',
+            storagePath: path,
+            thumbnailPath: null,
             originalFilename: item.file.name,
-            mimeType: img.blob.type,
-            fileSize: img.blob.size,
-            width: img.width,
-            height: img.height,
+            mimeType: mime,
+            fileSize: item.file.size,
+            duration: Math.max(0.5, Math.min(item.seconds ?? 1, 300)),
           },
         })
-      } catch (err) {
-        const e = toMemoryError(err)
-        if (e.code !== 'cancelled') console.error('[g4u] upload failed', item.file.name, e.detail ?? e)
-        patchItem(item.id, { status: 'error', error: e.userMessage })
+        return
       }
+
+      const img = await processImage(item.file)
+      const mainPath = `${base}/photo-${n}.${img.ext}`
+      const thumbPath = `${base}/thumb-photo-${n}.webp`
+      patchItem(item.id, { status: 'uploading', progress: 0 })
+      await uploadObject(mainPath, img.blob, img.blob.type, (f) => patchItem(item.id, { progress: f }), abortSignal)
+      await uploadObject(thumbPath, img.thumb, img.thumb.type || 'image/webp', undefined, abortSignal)
+      patchItem(item.id, {
+        status: 'done',
+        progress: 1,
+        result: {
+          mediaType: 'image',
+          storagePath: mainPath,
+          thumbnailPath: thumbPath,
+          originalFilename: item.file.name,
+          mimeType: img.blob.type,
+          fileSize: img.blob.size,
+          width: img.width,
+          height: img.height,
+        },
+      })
     },
     [patchItem],
+  )
+
+  /**
+   * A batch of many photos can hit a transient hiccup (a burst of concurrent requests, a dropped
+   * connection) that a moment later succeeds on its own — so a failure gets a couple of quiet
+   * retries before it is shown to the person as something to fix themselves.
+   */
+  const uploadItem = useCallback(
+    async (item: UploadItem, userId: string, abortSignal: AbortSignal) => {
+      patchItem(item.id, { status: 'processing', progress: 0, error: undefined })
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await uploadOnce(item, userId, abortSignal)
+          return
+        } catch (err) {
+          const e = toMemoryError(err)
+          if (e.code === 'cancelled') return
+          const canRetry = RETRYABLE_CODES.has(e.code) && attempt < RETRY_DELAYS_MS.length && !abortSignal.aborted
+          if (!canRetry) {
+            console.error('[g4u] upload failed', item.file.name, e.detail ?? e)
+            patchItem(item.id, { status: 'error', error: e.userMessage })
+            return
+          }
+          await sleep(RETRY_DELAYS_MS[attempt])
+        }
+      }
+    },
+    [patchItem, uploadOnce],
   )
 
   /**
@@ -170,13 +197,20 @@ export function useCreateMemory(year: number) {
       }
       const abortSignal = signal()
       let cursor = 0
-      const worker = async () => {
+      // Staggering the workers' first request spreads a big batch's opening burst out a little,
+      // rather than firing every session/storage call in the same instant.
+      const worker = async (startDelay: number) => {
+        if (startDelay > 0) await sleep(startDelay)
         while (cursor < pending.length && !abortSignal.aborted) {
-          const it = itemsRef.current.find((x) => x.id === pending[cursor++].id)
+          // `find`'s predicate runs once per item it examines, not once total — reading and
+          // incrementing `cursor` inside it let a single turn burn through several slots at once
+          // and eventually index past the end of `pending`, crashing the whole batch.
+          const id = pending[cursor++].id
+          const it = itemsRef.current.find((x) => x.id === id)
           if (it && it.status === 'queued') await uploadItem(it, userId, abortSignal)
         }
       }
-      await Promise.all(Array.from({ length: CONCURRENCY }, worker))
+      await Promise.all(Array.from({ length: CONCURRENCY }, (_, i) => worker(i * 200)))
     } catch (err) {
       failAll(err, 'upload batch failed')
     }

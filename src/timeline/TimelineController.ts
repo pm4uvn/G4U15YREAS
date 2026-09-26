@@ -22,6 +22,14 @@ interface TimelineState {
   pointer: Pointer
   /** Damped pointer, used for parallax. */
   smoothPointer: Pointer
+  /**
+   * How far the camera's head is turned, -1..1 per axis. Unlike `pointer` above (the mouse's
+   * current position, for the hero's subtle parallax), this only moves while a mouse drag is in
+   * progress and otherwise holds still — see TimelineController's drag handling for why.
+   */
+  lookOffset: Pointer
+  /** Damped lookOffset, used by CameraRig for the actual look-around rotation. */
+  smoothLookOffset: Pointer
   /** Index into YEARS for the year currently dominating the view. */
   activeYearIndex: number
   /** True once the user has scrolled past the hero threshold. */
@@ -31,6 +39,7 @@ interface TimelineState {
 const REDUCED_MOTION = prefersReducedMotion()
 const PROGRESS_DAMPING = REDUCED_MOTION ? 1 : 0.085
 const POINTER_DAMPING = REDUCED_MOTION ? 1 : 0.07
+const LOOK_DAMPING = REDUCED_MOTION ? 1 : 0.14
 const VELOCITY_DECAY = 0.88
 // The hero fades out over the first fifth of a slot (see getHeroFadeEnd) — comfortably before
 // the first year becomes active, so the hero never ghosts while a year is already shown.
@@ -41,6 +50,8 @@ export const timelineStore = createStore<TimelineState>(() => ({
   velocity: 0,
   pointer: { x: 0, y: 0 },
   smoothPointer: { x: 0, y: 0 },
+  lookOffset: { x: 0, y: 0 },
+  smoothLookOffset: { x: 0, y: 0 },
   activeYearIndex: 0,
   hasEntered: false,
 }))
@@ -84,6 +95,49 @@ export function initTimelineController() {
   }
   window.addEventListener('pointermove', onPointerMove, { passive: true })
 
+  /**
+   * Press-and-drag with the mouse turns the camera's head (CameraRig reads `lookOffset`). This is
+   * a persistent offset built from drag *distance*, not the mouse's raw position like `pointer`
+   * above — an absolute-position mapping meant every stray mouse movement anywhere on the page
+   * (after clicking a button, reading the ticker, anything) snapped the look angle to wherever the
+   * cursor happened to land, which read as jittery. A drag has no such jump, and holds still after
+   * release rather than sliding back, like turning to look at something and leaving your head there.
+   * Touch is left out: a touch-drag is already how the page is scrolled, and the two would fight.
+   */
+  let dragPointerId: number | null = null
+  let lastDragX = 0
+  let lastDragY = 0
+  const DRAG_YAW_PER_PX = 1 / (window.innerWidth * 0.9)
+  const DRAG_PITCH_PER_PX = 1 / (window.innerHeight * 0.7)
+
+  const onDragStart = (event: PointerEvent) => {
+    if (event.pointerType !== 'mouse' || event.button !== 0) return
+    dragPointerId = event.pointerId
+    lastDragX = event.clientX
+    lastDragY = event.clientY
+  }
+  const onDragMove = (event: PointerEvent) => {
+    if (dragPointerId === null || event.pointerId !== dragPointerId) return
+    const dx = event.clientX - lastDragX
+    const dy = event.clientY - lastDragY
+    lastDragX = event.clientX
+    lastDragY = event.clientY
+    const { lookOffset } = timelineStore.getState()
+    timelineStore.setState({
+      lookOffset: {
+        x: Math.min(1, Math.max(-1, lookOffset.x + dx * DRAG_YAW_PER_PX)),
+        y: Math.min(1, Math.max(-1, lookOffset.y - dy * DRAG_PITCH_PER_PX)),
+      },
+    })
+  }
+  const onDragEnd = (event: PointerEvent) => {
+    if (event.pointerId === dragPointerId) dragPointerId = null
+  }
+  window.addEventListener('pointerdown', onDragStart, { passive: true })
+  window.addEventListener('pointermove', onDragMove, { passive: true })
+  window.addEventListener('pointerup', onDragEnd, { passive: true })
+  window.addEventListener('pointercancel', onDragEnd, { passive: true })
+
   const tick = () => {
     const state = timelineStore.getState()
 
@@ -100,12 +154,16 @@ export function initTimelineController() {
       x: gsap.utils.interpolate(state.smoothPointer.x, state.pointer.x, POINTER_DAMPING),
       y: gsap.utils.interpolate(state.smoothPointer.y, state.pointer.y, POINTER_DAMPING),
     }
+    const smoothLookOffset = {
+      x: gsap.utils.interpolate(state.smoothLookOffset.x, state.lookOffset.x, LOOK_DAMPING),
+      y: gsap.utils.interpolate(state.smoothLookOffset.y, state.lookOffset.y, LOOK_DAMPING),
+    }
 
     const activeYearIndex = activeYearAtSlot(getLayout(), tToSlot(smoothProgress))
 
     const hasEntered = state.hasEntered || smoothProgress > getHeroFadeEnd() * 0.5
 
-    const next: Partial<TimelineState> = { smoothProgress, velocity, smoothPointer }
+    const next: Partial<TimelineState> = { smoothProgress, velocity, smoothPointer, smoothLookOffset }
     if (activeYearIndex !== state.activeYearIndex) next.activeYearIndex = activeYearIndex
     if (hasEntered !== state.hasEntered) next.hasEntered = hasEntered
 
@@ -153,6 +211,10 @@ export function initTimelineController() {
     unsubscribeUrl()
     unsubscribeJourney()
     window.removeEventListener('pointermove', onPointerMove)
+    window.removeEventListener('pointerdown', onDragStart)
+    window.removeEventListener('pointermove', onDragMove)
+    window.removeEventListener('pointerup', onDragEnd)
+    window.removeEventListener('pointercancel', onDragEnd)
     gsap.ticker.remove(tick)
     unbindTicker?.()
     initialized = false

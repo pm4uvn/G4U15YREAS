@@ -17,6 +17,11 @@ const MAX_FOV = 96
 // centers on 2012's node before the user has scrolled anywhere.
 const LOOK_AHEAD_YEARS = 0.25
 const PARALLAX_STRENGTH = 0.12 // the path stays essentially still under the pointer
+// Dragging with the mouse turns the camera's head — a real look-around, not just the small
+// positional drift above. Yaw is the wider of the two, like turning to look down the strings;
+// pitch stays modest so the neck never tips out of frame.
+const LOOK_YAW = THREE.MathUtils.degToRad(30)
+const LOOK_PITCH = THREE.MathUtils.degToRad(16)
 const ROLL_STRENGTH = 6.5
 const REDUCED_MOTION = prefersReducedMotion()
 const CAMERA_DAMPING = REDUCED_MOTION ? 1 : 0.055
@@ -29,6 +34,10 @@ const _desiredPos = new THREE.Vector3()
 const _right = new THREE.Vector3()
 const _up = new THREE.Vector3()
 const _worldUp = new THREE.Vector3(0, 1, 0)
+const _lookDir = new THREE.Vector3()
+const _lookAt = new THREE.Vector3()
+const _yawQuat = new THREE.Quaternion()
+const _pitchQuat = new THREE.Quaternion()
 
 export function CameraRig() {
   const currentRoll = useRef(0)
@@ -44,7 +53,7 @@ export function CameraRig() {
       cam.fov = wanted
       cam.updateProjectionMatrix()
     }
-    const { smoothProgress, velocity, smoothPointer } = getTimelineState()
+    const { smoothProgress, velocity, smoothPointer, smoothLookOffset } = getTimelineState()
     const t = THREE.MathUtils.clamp(smoothProgress, 0, 1)
 
     // The camera rides its own wider helix (see guitarPath.ts) so it always
@@ -69,8 +78,14 @@ export function CameraRig() {
 
     camera.position.lerp(_desiredPos, CAMERA_DAMPING)
 
-    const lookAt = _lookTarget.clone().addScaledVector(_right, smoothPointer.x * PARALLAX_STRENGTH * 0.5)
-    camera.lookAt(lookAt)
+    // Turn the head: rotate the look direction around the path's own up/right, rather than just
+    // sliding the target sideways, so it reads as a genuine look-around instead of a slight drift.
+    _lookDir.subVectors(_lookTarget, camera.position)
+    _yawQuat.setFromAxisAngle(_up, smoothLookOffset.x * LOOK_YAW)
+    _pitchQuat.setFromAxisAngle(_right, smoothLookOffset.y * LOOK_PITCH)
+    _lookDir.applyQuaternion(_yawQuat).applyQuaternion(_pitchQuat)
+    _lookAt.addVectors(camera.position, _lookDir)
+    camera.lookAt(_lookAt)
 
     const targetRoll = THREE.MathUtils.clamp(velocity * -ROLL_STRENGTH, -0.16, 0.16)
     currentRoll.current = THREE.MathUtils.lerp(currentRoll.current, targetRoll, ROLL_DAMPING)
