@@ -240,11 +240,22 @@ body:has(.admin-login) {
   display: grid;
   place-items: start center;
   overflow-y: auto;
+  /* Without this, a drag near the top/bottom edge on Chrome/Android can be swallowed by the
+     page's own pull-to-refresh or bounce instead of scrolling the dialog underneath it. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   padding: 2rem 1rem;
   background: rgba(0, 0, 0, 0.7);
 }
 .admin-dialog {
   width: min(40rem, 100%);
+  /* A second, inner scroller: if the outer overlay ever fails to size itself against a phone's
+     dynamic toolbar/keyboard, the dialog still has its own bounded, scrollable box. */
+  max-height: calc(100dvh - 4rem);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;

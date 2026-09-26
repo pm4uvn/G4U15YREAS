@@ -72,8 +72,14 @@ export async function listMemories(f: AdminFilters): Promise<{ rows: AdminMemory
 }
 
 export async function updateMemory(id: string, patch: MemoryPatch) {
-  const { error } = await client().from('g4u_memories').update(patch).eq('id', id)
+  // `.select()` forces PostgREST to report which rows actually matched — without it, a write RLS
+  // silently blocks (wrong role, stale session) returns success with nothing changed, and the
+  // person editing sees no error and no effect, which reads as "it just didn't save".
+  const { data, error } = await client().from('g4u_memories').update(patch).eq('id', id).select('id')
   if (error) throw new Error(error.message)
+  if (!data || data.length === 0) {
+    throw new Error('Không lưu được — có thể phiên quản trị đã hết hạn. Hãy đăng xuất rồi đăng nhập lại.')
+  }
 }
 
 export async function setDeleted(id: string, deleted: boolean) {

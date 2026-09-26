@@ -22,6 +22,8 @@ const PARALLAX_STRENGTH = 0.12 // the path stays essentially still under the poi
 // pitch stays modest so the neck never tips out of frame.
 const LOOK_YAW = THREE.MathUtils.degToRad(30)
 const LOOK_PITCH = THREE.MathUtils.degToRad(16)
+/** A constant tilt upward from dead-ahead, so the resting view reads a little less flat. */
+const BASE_TILT_UP = THREE.MathUtils.degToRad(7)
 const ROLL_STRENGTH = 6.5
 const REDUCED_MOTION = prefersReducedMotion()
 const CAMERA_DAMPING = REDUCED_MOTION ? 1 : 0.055
@@ -82,7 +84,7 @@ export function CameraRig() {
     // sliding the target sideways, so it reads as a genuine look-around instead of a slight drift.
     _lookDir.subVectors(_lookTarget, camera.position)
     _yawQuat.setFromAxisAngle(_up, smoothLookOffset.x * LOOK_YAW)
-    _pitchQuat.setFromAxisAngle(_right, smoothLookOffset.y * LOOK_PITCH)
+    _pitchQuat.setFromAxisAngle(_right, smoothLookOffset.y * LOOK_PITCH + BASE_TILT_UP)
     _lookDir.applyQuaternion(_yawQuat).applyQuaternion(_pitchQuat)
     _lookAt.addVectors(camera.position, _lookDir)
     camera.lookAt(_lookAt)

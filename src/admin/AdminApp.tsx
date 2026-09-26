@@ -135,7 +135,16 @@ function MediaPreview({ media, onDelete }: { media: MediaRow; onDelete: () => vo
   )
 }
 
-function EditDialog({ row, onClose, onChanged }: { row: AdminMemory; onClose: () => void; onChanged: () => void }) {
+function EditDialog({
+  row,
+  onClose,
+  onChanged,
+}: {
+  row: AdminMemory
+  onClose: () => void
+  /** The memory's year after a successful save, so the list can drop a year filter that would now hide it. */
+  onChanged: (year?: number) => void
+}) {
   const [title, setTitle] = useState(row.title ?? '')
   const [content, setContent] = useState(row.content ?? '')
   const [author, setAuthor] = useState(row.author_name ?? '')
@@ -163,7 +172,7 @@ function EditDialog({ row, onClose, onChanged }: { row: AdminMemory; onClose: ()
         status,
         visibility,
       })
-      onChanged()
+      onChanged(year)
       onClose()
     } catch (err) {
       setError(errorText(err))
@@ -285,6 +294,19 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
   const [editing, setEditing] = useState<AdminMemory | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
+
+  /**
+   * If the year was just changed away from whatever the list is filtered to, the saved row would
+   * otherwise vanish from view with no sign that the save actually worked — so the filter widens
+   * to "every year" instead, and the row stays visible where the person can see the new value.
+   */
+  const handleEdited = useCallback(
+    (year?: number) => {
+      setFilters((f) => (year !== undefined && f.year !== 'all' && f.year !== year ? { ...f, year: 'all', page: 0 } : f))
+      reload()
+    },
+    [reload],
+  )
 
   useEffect(() => {
     let live = true
@@ -447,7 +469,7 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
         </button>
       </nav>
 
-      {editing && <EditDialog row={editing} onClose={() => setEditing(null)} onChanged={reload} />}
+      {editing && <EditDialog row={editing} onClose={() => setEditing(null)} onChanged={handleEdited} />}
     </div>
   )
 }
