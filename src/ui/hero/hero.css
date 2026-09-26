@@ -528,10 +528,9 @@
   .hero-friends {
     filter: none;
   }
-  /* Smaller and lower, so it sits below the lettering artwork instead of fighting it for room. */
   .hero-friends {
-    width: min(30rem, 82%);
-    opacity: 0.6;
+    width: min(46rem, 98%);
+    opacity: 0.75;
   }
   .hero-layer--bg::after {
     content: '';
