@@ -10,6 +10,7 @@ import { youtubeThumbnail } from '../lib/youtube'
 import { signPaths } from '../lib/supabaseStorage'
 import { prefersReducedMotion } from '../utils/device'
 import { firstVisual, memoryExcerpt, voiceNotes } from '../memories/memoryFormat'
+import { fetchLikeState, setLiked, type LikeState } from '../lib/g4uMemories'
 import type { G4UMemory } from '../types/g4u-memory'
 
 const CARD_WIDTH = 2.7
@@ -65,6 +66,76 @@ function getShadowTexture() {
   ctx.fillRect(0, 0, size, size)
   shadowTexture = new THREE.CanvasTexture(canvas)
   return shadowTexture
+}
+
+/** The G4U mark used as the like button's icon — one texture, shared by every card. */
+let likeIconTexture: THREE.Texture | null = null
+let likeIconPromise: Promise<THREE.Texture> | null = null
+function useLikeIconTexture(): THREE.Texture | null {
+  const [tex, setTex] = useState(likeIconTexture)
+  useEffect(() => {
+    if (tex) return
+    likeIconPromise ??= new Promise((resolve, reject) => {
+      new THREE.TextureLoader().load(
+        '/favicon-64.png',
+        (t) => {
+          t.colorSpace = THREE.SRGBColorSpace
+          likeIconTexture = t
+          resolve(t)
+        },
+        undefined,
+        reject,
+      )
+    })
+    let cancelled = false
+    likeIconPromise.then((t) => !cancelled && setTex(t)).catch((err) => console.warn('[g4u] like icon failed to load', err))
+    return () => {
+      cancelled = true
+    }
+  }, [tex])
+  return tex
+}
+
+/** Like count + whether this session already liked it, fetched once a card is close enough to matter. */
+function useLikeState(memoryId: string, enabled: boolean) {
+  // Starts at a real value (not null) so the button is clickable — and shows "0" rather than
+  // nothing — from the very first frame, even before the count has loaded or if it never does
+  // (e.g. the likes table not migrated yet). A click still attempts to save; only the outcome
+  // is uncertain.
+  const [state, setState] = useState<LikeState>({ count: 0, likedByMe: false })
+  const touched = useRef(false)
+  const busy = useRef(false)
+
+  useEffect(() => {
+    if (!enabled) return
+    let cancelled = false
+    fetchLikeState(memoryId)
+      .then((s) => !cancelled && !touched.current && setState(s))
+      .catch((err) => console.warn('[g4u] could not load like state', err))
+    return () => {
+      cancelled = true
+    }
+  }, [memoryId, enabled])
+
+  const toggle = useCallback(() => {
+    if (busy.current) return
+    touched.current = true
+    busy.current = true
+    setState((current) => {
+      const wasLiked = current.likedByMe
+      void setLiked(memoryId, !wasLiked)
+        .catch((err) => {
+          console.warn('[g4u] like failed', err)
+          setState((s) => ({ count: s.count + (wasLiked ? 1 : -1), likedByMe: wasLiked }))
+        })
+        .finally(() => {
+          busy.current = false
+        })
+      return { count: current.count + (wasLiked ? -1 : 1), likedByMe: !wasLiked }
+    })
+  }, [memoryId])
+
+  return { state, toggle }
 }
 
 /** Loads a texture only while `enabled`, and disposes it as soon as it is not needed. */
@@ -228,6 +299,16 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
   const badgeRingMat = useRef<THREE.MeshBasicMaterial>(null)
   const badgeText = useRef<{ fillOpacity: number } | null>(null)
 
+  const like = useLikeState(memory.id, near)
+  const likeIconTex = useLikeIconTexture()
+  const [likeHover, setLikeHover] = useState(false)
+  const likeGroup = useRef<THREE.Group>(null)
+  const likeScale = useRef(1)
+  const likeDiscMat = useRef<THREE.MeshBasicMaterial>(null)
+  const likeRingMat = useRef<THREE.MeshBasicMaterial>(null)
+  const likeIconMat = useRef<THREE.MeshBasicMaterial>(null)
+  const likeCountText = useRef<{ fillOpacity: number } | null>(null)
+
   const layout = useMemo(() => {
     const t = slot / path.slotsLength
     const frame = getNeckFrame(t, path)
@@ -311,6 +392,18 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
     if (badgeDiscMat.current) badgeDiscMat.current.opacity = alpha * 0.85
     if (badgeRingMat.current) badgeRingMat.current.opacity = alpha * 0.9
     if (badgeText.current) badgeText.current.fillOpacity = alpha
+
+    if (likeGroup.current) {
+      likeScale.current += ((likeHover ? 1.12 : 1) - likeScale.current) * 0.2
+      likeGroup.current.scale.setScalar(likeScale.current)
+    }
+    const likeAlpha = Math.min(1, alpha * 1.15)
+    const liked = like.state.likedByMe
+    if (likeDiscMat.current) likeDiscMat.current.opacity = likeAlpha * 0.85
+    if (likeRingMat.current) likeRingMat.current.opacity = likeAlpha * (liked ? 1 : 0.9)
+    if (likeIconMat.current) likeIconMat.current.opacity = likeAlpha * (liked ? 1 : 0.75)
+    if (likeCountText.current) likeCountText.current.fillOpacity = likeAlpha
+
     if (leaderRef.current) leaderRef.current.material.opacity = reveal * passing * appear.current * 0.16
     // quote 0.9 · play mark 0.9 · title 0.75 · author 0.45
     const factors = [0.9, 0.9, 0.75, 0.45, 0.85, 0.7]
@@ -327,11 +420,11 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
   }, [near])
 
   useEffect(() => {
-    document.body.style.cursor = hovered || btnHover ? 'pointer' : ''
+    document.body.style.cursor = hovered || btnHover || likeHover ? 'pointer' : ''
     return () => {
       document.body.style.cursor = ''
     }
-  }, [hovered, btnHover])
+  }, [hovered, btnHover, likeHover])
 
   if (!near) return <group ref={groupRef} position={layout.position} />
 
@@ -425,6 +518,57 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
                   </Text>
                 </group>
               )}
+
+              {/* A quick like, below the photo (not on it) — on the picture itself, its own click
+                  to open the memory always won the hit-test over this smaller button underneath. */}
+              <group
+                ref={likeGroup}
+                position={[-(w / 2 - 0.3), -h / 2 - 0.85, 0.02]}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  like.toggle()
+                }}
+                onPointerOver={(e) => {
+                  e.stopPropagation()
+                  setLikeHover(true)
+                }}
+                onPointerOut={() => setLikeHover(false)}
+              >
+                <mesh>
+                  <circleGeometry args={[0.3, 40]} />
+                  <meshBasicMaterial ref={likeDiscMat} color="#0b0805" transparent opacity={0} depthWrite={false} toneMapped={false} />
+                </mesh>
+                <mesh position={[0, 0, 0.005]}>
+                  <ringGeometry args={[0.285, 0.31, 40]} />
+                  <meshBasicMaterial ref={likeRingMat} color={GOLD} transparent opacity={0} depthWrite={false} toneMapped={false} />
+                </mesh>
+                {likeIconTex && (
+                  <mesh position={[0, 0.03, 0.01]} scale={0.32}>
+                    <planeGeometry args={[1, 1]} />
+                    <meshBasicMaterial
+                      ref={likeIconMat}
+                      map={likeIconTex}
+                      transparent
+                      opacity={0}
+                      depthWrite={false}
+                      toneMapped={false}
+                    />
+                  </mesh>
+                )}
+                <Text
+                  ref={(el: never) => {
+                    likeCountText.current = el
+                  }}
+                  position={[0, -0.5, 0.01]}
+                  fontSize={0.12}
+                  color={GOLD}
+                  anchorX="center"
+                  anchorY="middle"
+                  fillOpacity={0}
+                >
+                  {like.state.count}
+                </Text>
+              </group>
 
               {isVideo && (
                 <Text

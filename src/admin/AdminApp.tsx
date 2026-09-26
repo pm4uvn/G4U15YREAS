@@ -7,14 +7,17 @@ import type { MediaRow, MemoryStatus, MemoryVisibility } from '../types/g4u-memo
 import {
   PAGE_SIZE,
   currentSession,
+  deleteCommentAdmin,
   deleteForever,
   deleteMedia,
   hasAdminRole,
+  listComments,
   listMemories,
   setDeleted,
   signIn,
   signOut,
   updateMemory,
+  type AdminComment,
   type AdminFilters,
   type AdminMemory,
   type MemoryPatch,
@@ -154,8 +157,29 @@ function EditDialog({
   const [status, setStatus] = useState<MemoryStatus>(row.status)
   const [visibility, setVisibility] = useState<MemoryVisibility>(row.visibility)
   const [media, setMedia] = useState<MediaRow[]>(row.g4u_memory_media ?? [])
+  const [comments, setComments] = useState<AdminComment[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let live = true
+    listComments(row.id)
+      .then((rows) => live && setComments(rows))
+      .catch((err) => console.error('[g4u] could not load comments', err))
+    return () => {
+      live = false
+    }
+  }, [row.id])
+
+  const removeComment = async (id: string) => {
+    if (!window.confirm('Xoá bình luận này? Không thể khôi phục.')) return
+    try {
+      await deleteCommentAdmin(id)
+      setComments((list) => list?.filter((c) => c.id !== id) ?? null)
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }
 
   const save = async (e: FormEvent) => {
     e.preventDefault()
@@ -256,6 +280,28 @@ function EditDialog({
                 <MediaPreview key={m.id} media={m} onDelete={() => void removeMedia(m)} />
               ))}
             </div>
+          </>
+        )}
+
+        {comments && comments.length > 0 && (
+          <>
+            <h3>Bình luận ({comments.length})</h3>
+            <ul className="admin-comment-list">
+              {comments.map((c) => (
+                <li key={c.id} className="admin-comment">
+                  <div className="admin-comment__body">
+                    <p className="admin-comment__head">
+                      <strong>{c.authorName || 'Ẩn danh'}</strong>
+                      <span>{new Date(c.createdAt).toLocaleString('vi-VN')}</span>
+                    </p>
+                    <p className="admin-comment__text">{c.content}</p>
+                  </div>
+                  <button type="button" className="admin-btn admin-btn--danger admin-btn--small" onClick={() => void removeComment(c.id)}>
+                    Xoá
+                  </button>
+                </li>
+              ))}
+            </ul>
           </>
         )}
 

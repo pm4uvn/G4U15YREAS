@@ -412,7 +412,7 @@
 /* The supplied logo is used as-is — never re-typeset. */
 .hero-logo {
   display: block;
-  width: clamp(300px, 34vw, 600px);
+  width: clamp(200px, 22vw, 380px);
   height: auto;
   object-fit: contain;
   filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 12px rgba(240, 181, 82, 0.22));
@@ -502,6 +502,25 @@
 .hero__cta:hover .hero__cta-arrow,
 .hero__cta:focus-visible .hero__cta-arrow {
   transform: translateX(4px);
+}
+
+.hero__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+}
+/* A quieter second call to action — the registration form, not the main journey. */
+.hero__cta--ghost {
+  border-color: rgba(238, 228, 203, 0.3);
+  background: transparent;
+  font-size: 0.74rem;
+}
+.hero__cta--ghost:hover,
+.hero__cta--ghost:focus-visible {
+  border-color: rgba(238, 228, 203, 0.7);
+  background: rgba(238, 228, 203, 0.08);
 }
 
 .hero__milestones {
@@ -598,14 +617,23 @@
     padding-top: 17svh;
   }
   .hero-logo {
-    width: min(80vw, 340px);
+    width: min(56vw, 220px);
   }
   .hero__kicker {
     margin-top: 1rem;
   }
+  .hero__ctas {
+    flex-direction: column;
+    width: 100%;
+  }
   .hero__cta {
+    width: 100%;
+    justify-content: center;
     padding: 0.9rem 1.6rem;
     font-size: 0.8rem;
+  }
+  .hero__cta--ghost {
+    font-size: 0.72rem;
   }
   .hero__milestones {
     display: flex;

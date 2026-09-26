@@ -253,3 +253,91 @@ export async function fetchAllMemoryTexts(): Promise<MemoryText[]> {
     location: r.location as string | null,
   }))
 }
+
+export interface LikeState {
+  count: number
+  likedByMe: boolean
+}
+
+/** Everyone who has liked a memory, plus whether the current session is among them. */
+export async function fetchLikeState(memoryId: string): Promise<LikeState> {
+  if (!supabase) return { count: 0, likedByMe: false }
+  const uid = (await supabase.auth.getSession()).data.session?.user.id
+  const { data, error } = await supabase.from('g4u_memory_likes').select('user_id').eq('memory_id', memoryId)
+  if (error) throw toMemoryError(error)
+  const rows = (data ?? []) as { user_id: string }[]
+  return { count: rows.length, likedByMe: !!uid && rows.some((r) => r.user_id === uid) }
+}
+
+/** Likes or unlikes as the current session (starting an anonymous one first if needed). */
+export async function setLiked(memoryId: string, liked: boolean): Promise<void> {
+  if (!supabase) throw new MemoryError('not_configured')
+  const { user } = await ensureSession()
+  if (liked) {
+    const { error } = await supabase.from('g4u_memory_likes').insert({ memory_id: memoryId, user_id: user.id })
+    // 23505 = unique_violation — already liked (a second tap, another tab): treat as success.
+    if (error && (error as { code?: string }).code !== '23505') throw toMemoryError(error)
+  } else {
+    const { error } = await supabase.from('g4u_memory_likes').delete().eq('memory_id', memoryId).eq('user_id', user.id)
+    if (error) throw toMemoryError(error)
+  }
+}
+
+export interface MemoryComment {
+  id: string
+  memoryId: string
+  userId: string | null
+  authorName: string | null
+  content: string
+  createdAt: string
+  /** Written by the current session — theirs to delete. */
+  mine: boolean
+}
+
+function mapComment(row: Record<string, string | null>, uid: string | undefined): MemoryComment {
+  return {
+    id: row.id as string,
+    memoryId: row.memory_id as string,
+    userId: row.user_id,
+    authorName: row.author_name,
+    content: row.content as string,
+    createdAt: row.created_at as string,
+    mine: !!uid && row.user_id === uid,
+  }
+}
+
+/** A memory's comments, oldest first. */
+export async function fetchComments(memoryId: string): Promise<MemoryComment[]> {
+  if (!supabase) return []
+  const uid = (await supabase.auth.getSession()).data.session?.user.id
+  const { data, error } = await supabase
+    .from('g4u_memory_comments')
+    .select('id, memory_id, user_id, author_name, content, created_at')
+    .eq('memory_id', memoryId)
+    .order('created_at', { ascending: true })
+    .limit(300)
+  if (error) throw toMemoryError(error)
+  return (data as Record<string, string | null>[]).map((r) => mapComment(r, uid))
+}
+
+/** Posts a comment as the current session (starting an anonymous one first if needed). */
+export async function addComment(memoryId: string, authorName: string, content: string): Promise<MemoryComment> {
+  if (!supabase) throw new MemoryError('not_configured')
+  const trimmedContent = content.trim().slice(0, 500)
+  if (!trimmedContent) throw new MemoryError('unknown', 'empty comment')
+  const { user } = await ensureSession()
+  const { data, error } = await supabase
+    .from('g4u_memory_comments')
+    .insert({ memory_id: memoryId, user_id: user.id, author_name: authorName.trim().slice(0, 80) || null, content: trimmedContent })
+    .select('id, memory_id, user_id, author_name, content, created_at')
+    .single()
+  if (error) throw toMemoryError(error)
+  return mapComment(data as Record<string, string | null>, user.id)
+}
+
+/** Soft-deletes a comment — the author's own, or an admin's via the "admin all" policy. */
+export async function deleteComment(commentId: string): Promise<void> {
+  if (!supabase) throw new MemoryError('not_configured')
+  const { error } = await supabase.from('g4u_memory_comments').update({ deleted_at: new Date().toISOString() }).eq('id', commentId)
+  if (error) throw toMemoryError(error)
+}

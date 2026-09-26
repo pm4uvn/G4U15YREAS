@@ -310,6 +310,47 @@ body:has(.admin-login) {
   color: var(--a-muted);
   font-size: 0.8rem;
 }
+.admin-comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.admin-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--a-card);
+  border: 1px solid var(--a-line);
+  border-radius: 0.5rem;
+}
+.admin-comment__body {
+  flex: 1;
+  min-width: 0;
+}
+.admin-comment__head {
+  margin: 0 0 0.2rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  font-size: 0.78rem;
+}
+.admin-comment__head span {
+  color: var(--a-muted);
+  font-size: 0.7rem;
+}
+.admin-comment__text {
+  margin: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .admin-actions {
   display: flex;
   justify-content: flex-end;

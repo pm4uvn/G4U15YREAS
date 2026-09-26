@@ -220,12 +220,22 @@ export function Intro() {
             }
           />
         </p>
-        <button type="button" className="hero__cta hero-enter" onClick={() => enter('start')}>
-          Enter the Journey
-          <span className="hero__cta-arrow" aria-hidden="true">
-            →
-          </span>
-        </button>
+        <div className="hero__ctas">
+          <button type="button" className="hero__cta hero-enter" onClick={() => enter('start')}>
+            Enter the Journey
+            <span className="hero__cta-arrow" aria-hidden="true">
+              →
+            </span>
+          </button>
+          <a
+            className="hero__cta hero__cta--ghost hero-enter"
+            href="https://docs.google.com/forms/d/e/1FAIpQLSeO4ZvfZUbmMGy10v3oU7VWzTATLGVckz_VR7G5m5nnHoJv3Q/viewform"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Đăng ký tham gia sinh nhật
+          </a>
+        </div>
 
         <ul className="hero__milestones hero-enter" aria-label="Jump to a milestone year">
           {HERO_MILESTONES.map((m) => (

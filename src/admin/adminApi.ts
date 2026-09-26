@@ -110,3 +110,28 @@ export async function deleteMedia(media: MediaRow) {
   const paths = storedPaths([media])
   if (paths.length > 0) await db.storage.from(BUCKET).remove(paths)
 }
+
+export interface AdminComment {
+  id: string
+  authorName: string | null
+  content: string
+  createdAt: string
+}
+
+/** A memory's live (not soft-deleted) comments, for moderation. */
+export async function listComments(memoryId: string): Promise<AdminComment[]> {
+  const { data, error } = await client()
+    .from('g4u_memory_comments')
+    .select('id, author_name, content, created_at')
+    .eq('memory_id', memoryId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((r) => ({ id: r.id, authorName: r.author_name, content: r.content, createdAt: r.created_at }))
+}
+
+/** Permanently removes a comment (the "admin all" policy allows a hard delete; authors only soft-delete their own). */
+export async function deleteCommentAdmin(id: string) {
+  const { error } = await client().from('g4u_memory_comments').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}

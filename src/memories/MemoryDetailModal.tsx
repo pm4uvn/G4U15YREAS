@@ -7,6 +7,7 @@ import { signPaths } from '../lib/supabaseStorage'
 import { loadMore, useMemoriesByYear } from './hooks/useMemoriesByYear'
 import { MemoryGallery } from './MemoryGallery'
 import { MemoryAudio } from './MemoryAudio'
+import { MemorySocial } from './MemorySocial'
 import { memoryDateLabel, voiceNotes } from './memoryFormat'
 import { useDialog } from './useDialog'
 import './memories.css'
@@ -145,6 +146,7 @@ function Viewer({ year, memoryId, onClose, onSelect }: ViewerProps) {
               <span>{memoryDateLabel(memory)}</span>
               {memory.location && <span>{memory.location}</span>}
             </p>
+            <MemorySocial memoryId={memory.id} share={{ title, year }} />
           </article>
         </div>
       ) : (
