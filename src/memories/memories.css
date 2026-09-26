@@ -220,6 +220,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  /* When the content is taller than the screen, plain `center` computes a start position above
+     y=0 that the page can never actually scroll up to — the classic "centered content that
+     overflows a scroll container loses its own top" bug, and exactly why a tall memory's photo
+     opened with its top cropped off. `safe` falls back to start-alignment once it would overflow,
+     so the whole thing stays reachable; browsers that don't understand it just keep plain `center`
+     from the line above instead of being left with neither.
+   */
+  align-items: safe center;
+  justify-content: safe center;
   padding: 4.5rem 1.5rem 7rem;
   background: rgba(5, 5, 7, 0.94);
   backdrop-filter: blur(10px);
