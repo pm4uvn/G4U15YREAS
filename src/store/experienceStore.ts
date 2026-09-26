@@ -23,7 +23,7 @@ interface ExperienceState {
 }
 
 export const useExperienceStore = create<ExperienceState>((set) => ({
-  soundOn: false,
+  soundOn: true,
   toggleSound: () => set((s) => ({ soundOn: !s.soundOn })),
 
   webglSupported: true,

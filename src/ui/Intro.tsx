@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { gsap } from '../animation/gsap'
+import { startAmbient } from '../audio/ambientEngine'
+import { useExperienceStore } from '../store/experienceStore'
 import { timelineStore, scrollToYearIndex } from '../timeline/TimelineController'
 import { getHeroFadeEnd } from '../timeline/journey'
 import { YEARS } from '../timeline/timeline.data'
@@ -114,6 +116,9 @@ export function Intro() {
     const root = rootRef.current
     const zoom = zoomRef.current
     if (!root || !zoom || entered.current) return
+    // Sound defaults on, but a browser only allows starting audio from within a real click like
+    // this one — never on page load itself. Someone who turned it off with the toggle stays off.
+    if (useExperienceStore.getState().soundOn) startAmbient()
     if (prefersReducedMotion()) {
       scrollToYearIndex(yearIndex)
       return
