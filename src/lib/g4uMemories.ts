@@ -341,3 +341,22 @@ export async function deleteComment(commentId: string): Promise<void> {
   const { error } = await supabase.from('g4u_memory_comments').update({ deleted_at: new Date().toISOString() }).eq('id', commentId)
   if (error) throw toMemoryError(error)
 }
+
+/**
+ * Every published memory across every year, in the same order the 3D field places them (year,
+ * then date, then creation time) — for the guided tour, which needs each one's full media too.
+ */
+export async function fetchAllMemories(): Promise<G4UMemory[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('g4u_memories')
+    .select('*, g4u_memory_media(*)')
+    .eq('status', 'published')
+    .is('deleted_at', null)
+    .order('year', { ascending: true })
+    .order('memory_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true })
+    .limit(2000)
+  if (error) throw toMemoryError(error)
+  return (data as MemoryRow[]).map(mapMemory)
+}

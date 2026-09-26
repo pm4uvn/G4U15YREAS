@@ -160,6 +160,9 @@ button {
   gap: clamp(0.45rem, 1.1vh, 0.9rem);
   max-height: 76vh;
   overflow-y: auto;
+  /* Marked data-lenis-prevent, so this scrolls with native touch physics, not Lenis's virtual
+     scroll — without this, reaching either end bounces into scrolling the page behind it. */
+  overscroll-behavior: contain;
   pointer-events: auto;
   scrollbar-width: none;
 }
@@ -201,6 +204,17 @@ button {
   .nav__year {
     flex: none;
     padding: 0.4rem 0.55rem;
+  }
+  .hud-controls {
+    top: 1rem;
+    right: 1rem;
+    gap: 0.4rem;
+  }
+  .sound-toggle,
+  .autoplay-toggle {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.58rem;
+    gap: 0.35rem;
   }
 }
 
@@ -253,13 +267,20 @@ button {
   transition: width 0.5s ease;
 }
 
-/* ---------- Sound toggle ---------- */
+/* ---------- Sound + autoplay toggles ---------- */
 
-.sound-toggle {
+.hud-controls {
   position: fixed;
   top: 1.75rem;
   right: 1.5rem;
   z-index: 4; /* above the cover, which is z-index 3 */
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sound-toggle,
+.autoplay-toggle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -273,14 +294,22 @@ button {
   letter-spacing: 0.15em;
   text-transform: uppercase;
   backdrop-filter: blur(6px);
+  cursor: pointer;
+  transition: border-color 0.3s ease, color 0.3s ease;
 }
-.sound-toggle__dot {
+.autoplay-toggle[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+.sound-toggle__dot,
+.autoplay-toggle__dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--muted);
 }
-.sound-toggle__dot.is-on {
+.sound-toggle__dot.is-on,
+.autoplay-toggle__dot.is-on {
   background: var(--accent);
 }
 

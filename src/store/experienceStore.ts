@@ -20,6 +20,10 @@ interface ExperienceState {
   addMemoryYear: number | null
   openAddMemory: (year: number) => void
   closeAddMemory: () => void
+
+  /** A guided tour: scrolls through the journey on its own, pausing on each memory. */
+  autoplayOn: boolean
+  setAutoplay: (on: boolean) => void
 }
 
 export const useExperienceStore = create<ExperienceState>((set) => ({
@@ -39,4 +43,7 @@ export const useExperienceStore = create<ExperienceState>((set) => ({
   addMemoryYear: null,
   openAddMemory: (year) => set({ addMemoryYear: year }),
   closeAddMemory: () => set({ addMemoryYear: null }),
+
+  autoplayOn: false,
+  setAutoplay: (autoplayOn) => set({ autoplayOn }),
 }))

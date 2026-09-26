@@ -26,6 +26,11 @@ export function parseYouTubeId(input: string): string | null {
 
 export const youtubeThumbnail = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 
-/** Privacy-enhanced domain: no tracking cookies until the viewer presses play. */
-export const youtubeEmbedUrl = (id: string, autoplay = false) =>
-  `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1${autoplay ? '&autoplay=1' : ''}`
+/**
+ * Privacy-enhanced domain: no tracking cookies until the viewer presses play.
+ * `muted` exists because a browser only allows an iframed player to autoplay with sound once
+ * that specific frame has its own history of user interaction — unmuted autoplay from a tour
+ * that never touched the frame directly is routinely blocked, muted autoplay always works.
+ */
+export const youtubeEmbedUrl = (id: string, autoplay = false, muted = false) =>
+  `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1${autoplay ? '&autoplay=1' : ''}${muted ? '&mute=1' : ''}`

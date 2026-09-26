@@ -33,6 +33,8 @@ function Viewer({ year, memoryId, onClose, onSelect }: ViewerProps) {
   const { items, hasMore } = useMemoriesByYear(year)
   const index = Math.max(0, items.findIndex((m) => m.id === memoryId))
   const memory = items[index]
+  // The guided tour opens each memory itself and wants its media playing without a click.
+  const autoplayTour = useExperienceStore((s) => s.autoplayOn)
 
   const dialogRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -124,6 +126,7 @@ function Viewer({ year, memoryId, onClose, onSelect }: ViewerProps) {
                   media={memory.media.filter((m) => m.mediaType !== 'audio')}
                   urls={urls}
                   alt={title ?? `Kỷ niệm năm ${year}`}
+                  autoStartVideo={autoplayTour}
                 />
               )}
               {voiceNotes(memory).map((v, i, all) => (
@@ -132,6 +135,7 @@ function Viewer({ year, memoryId, onClose, onSelect }: ViewerProps) {
                   src={v.storagePath ? urls[v.storagePath] : undefined}
                   label={all.length > 1 ? `Ghi âm ${i + 1}` : 'Ghi âm'}
                   seconds={v.duration}
+                  autoPlay={autoplayTour && i === 0}
                 />
               ))}
               {mediaError && <p className="memory-modal__error">Không tải được ảnh/video. Hãy thử mở lại.</p>}

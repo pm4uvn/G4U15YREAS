@@ -7,9 +7,11 @@ import { Intro } from './ui/Intro'
 import { Navigation } from './ui/Navigation'
 import { YearIndicator } from './ui/YearIndicator'
 import { SoundToggle } from './ui/SoundToggle'
+import { AutoplayToggle } from './ui/AutoplayToggle'
 import { FallbackTimeline } from './ui/FallbackTimeline'
 import { MessageTicker } from './ui/MessageTicker'
 import { YearMemoryLayer } from './memories/YearMemoryLayer'
+import { AutoplayTour } from './experience/AutoplayTour'
 import { initTimelineController } from './timeline/TimelineController'
 import { useExperienceStore } from './store/experienceStore'
 import { startAmbient } from './audio/ambientEngine'
@@ -93,8 +95,12 @@ export default function App() {
         <YearIndicator />
         <YearMemoryLayer />
         <MessageTicker />
-        <SoundToggle />
+        <div className="hud-controls">
+          <AutoplayToggle />
+          <SoundToggle />
+        </div>
       </div>
+      <AutoplayTour />
       <Suspense fallback={null}>
         {memoryOpen && <MemoryDetailModal />}
         {addOpen && <AddMemoryModal />}

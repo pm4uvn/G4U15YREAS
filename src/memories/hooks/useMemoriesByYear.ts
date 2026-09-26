@@ -123,6 +123,11 @@ export async function reloadYear(year: number): Promise<void> {
 
 export { PAGE_SIZE }
 
+/** A year's current cache, read outside of React (e.g. by the guided tour). */
+export function getYearState(year: number): YearState {
+  return useStore.getState().years[year] ?? EMPTY
+}
+
 export function useMemoriesByYear(year: number) {
   const state = useStore((s) => s.years[year]) ?? EMPTY
 

@@ -243,3 +243,10 @@ export function scrollToStart() {
   const target = getHeroFadeEnd() * lenis.limit
   lenis.scrollTo(target, { duration: 1.6, easing: (t: number) => 1 - Math.pow(1 - t, 4) })
 }
+
+/** Scrolls to an exact slot on the path (e.g. one particular memory's position). */
+export function scrollToSlot(slot: number, duration = 1.4) {
+  if (!lenis || !isBrowser) return
+  const t = slot / getLayout().slotsLength
+  lenis.scrollTo(t * lenis.limit, { duration, easing: (x: number) => 1 - Math.pow(1 - x, 3) })
+}

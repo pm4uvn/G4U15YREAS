@@ -389,6 +389,9 @@
   gap: 0.9rem;
   max-height: 16rem;
   overflow-y: auto;
+  /* Nested inside the modal's own scroll area — without this, reaching the end of the comment
+     list on a touch device keeps scrolling the modal behind it instead of just stopping. */
+  overscroll-behavior: contain;
 }
 .memory-social__comment {
   padding-bottom: 0.8rem;

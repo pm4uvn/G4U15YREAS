@@ -10,8 +10,8 @@ import { youtubeThumbnail } from '../lib/youtube'
 import { signPaths } from '../lib/supabaseStorage'
 import { prefersReducedMotion } from '../utils/device'
 import { firstVisual, memoryExcerpt, voiceNotes } from '../memories/memoryFormat'
-import { fetchLikeState, setLiked, type LikeState } from '../lib/g4uMemories'
-import type { G4UMemory } from '../types/g4u-memory'
+import { fetchComments, fetchLikeState, setLiked, type LikeState, type MemoryComment } from '../lib/g4uMemories'
+import type { G4UMemory, G4UMemoryMedia } from '../types/g4u-memory'
 
 const CARD_WIDTH = 2.7
 /** Gap between the neck's edge and the card's nearest edge. */
@@ -175,6 +175,60 @@ function useCoverTexture(url: string | undefined, enabled: boolean) {
   return enabled && state?.url === url ? state : null
 }
 
+const ALBUM_ADVANCE_MS = 5000
+
+/** An album's cover cycles through its own photos, one every 5s, once its card is near. */
+function useAlbumCover(images: G4UMemoryMedia[], enabled: boolean): string | undefined {
+  const [urls, setUrls] = useState<Record<string, string>>({})
+  const [index, setIndex] = useState(0)
+  const paths = useMemo(() => images.map((m) => m.thumbnailPath ?? m.storagePath).filter((p): p is string => !!p), [images])
+
+  useEffect(() => {
+    if (!enabled || paths.length < 2) return
+    let cancelled = false
+    signPaths(paths)
+      .then((signed) => !cancelled && setUrls(signed))
+      .catch((err) => console.warn('[g4u] could not load album photos', err))
+    return () => {
+      cancelled = true
+    }
+  }, [enabled, paths])
+
+  useEffect(() => {
+    if (!enabled || paths.length < 2) return
+    const id = window.setInterval(() => setIndex((i) => (i + 1) % paths.length), ALBUM_ADVANCE_MS)
+    return () => window.clearInterval(id)
+  }, [enabled, paths.length])
+
+  if (paths.length < 2) return undefined
+  return urls[paths[index % paths.length]]
+}
+
+/** A memory's comments pop up beside the card, one every 5s, looping — same pace as the album. */
+function useCardComments(memoryId: string, enabled: boolean): MemoryComment | null {
+  const [comments, setComments] = useState<MemoryComment[]>([])
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    if (!enabled) return
+    let cancelled = false
+    fetchComments(memoryId)
+      .then((rows) => !cancelled && setComments(rows))
+      .catch((err) => console.warn('[g4u] could not load comments for the card', err))
+    return () => {
+      cancelled = true
+    }
+  }, [memoryId, enabled])
+
+  useEffect(() => {
+    if (!enabled || comments.length < 2) return
+    const id = window.setInterval(() => setIndex((i) => (i + 1) % comments.length), ALBUM_ADVANCE_MS)
+    return () => window.clearInterval(id)
+  }, [enabled, comments.length])
+
+  return enabled && comments.length > 0 ? comments[index % comments.length] : null
+}
+
 type PlaybackState = 'idle' | 'loading' | 'playing' | 'error'
 
 /** Only one voice note plays at a time, wherever it is. */
@@ -278,7 +332,13 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
   const hoverScale = useRef(1)
   const appear = useRef(0)
 
-  const cover = coverFor(memory)
+  // A memory with several photos reads as a small stack, with a count badge in the corner —
+  // and, once its card is near, its own cover cycles through those photos every 5s.
+  const images = useMemo(() => memory.media.filter((m) => m.mediaType === 'image'), [memory.media])
+  const photoCount = images.length
+  const isAlbum = photoCount > 1
+  const albumCover = useAlbumCover(images, near && isAlbum)
+  const cover = albumCover ?? coverFor(memory)
   const isVideo = firstVisual(memory)?.mediaType === 'video'
   const voice = useVoicePlayback(memory)
   const hasVoice = voice.hasVoice
@@ -290,9 +350,10 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
   const btnScale = useRef(1)
   const btnGroup = useRef<THREE.Group>(null)
   const tex = useCoverTexture(cover, near)
-  // A memory with several photos reads as a small stack, with a count badge in the corner.
-  const photoCount = useMemo(() => memory.media.filter((m) => m.mediaType === 'image').length, [memory.media])
-  const isAlbum = photoCount > 1
+  // Locked to the first photo's shape once known, so later ones in the cycle never resize the
+  // whole card (frame, shadow, badges, text) around them — only the picture itself changes.
+  const frozenAspect = useRef<number | null>(null)
+  if (tex && frozenAspect.current === null) frozenAspect.current = tex.aspect
   const stackMat1 = useRef<THREE.MeshBasicMaterial>(null)
   const stackMat2 = useRef<THREE.MeshBasicMaterial>(null)
   const badgeDiscMat = useRef<THREE.MeshBasicMaterial>(null)
@@ -308,6 +369,9 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
   const likeRingMat = useRef<THREE.MeshBasicMaterial>(null)
   const likeIconMat = useRef<THREE.MeshBasicMaterial>(null)
   const likeCountText = useRef<{ fillOpacity: number } | null>(null)
+
+  const comment = useCardComments(memory.id, near)
+  const commentText = useRef<{ fillOpacity: number } | null>(null)
 
   const layout = useMemo(() => {
     const t = slot / path.slotsLength
@@ -333,7 +397,7 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
   }, [memory.id, slot, side, path])
 
   const w = layout.width
-  const h = wantsPhoto ? w / (tex?.aspect ?? 4 / 3) : 1.2
+  const h = wantsPhoto ? w / (frozenAspect.current ?? tex?.aspect ?? 4 / 3) : 1.2
   const rise = h / 2 + RAISE + (jitter(memory.id, 3) * 0.5 + 0.5) * 0.25
 
   const title = memory.title ?? ''
@@ -403,6 +467,7 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
     if (likeRingMat.current) likeRingMat.current.opacity = likeAlpha * (liked ? 1 : 0.9)
     if (likeIconMat.current) likeIconMat.current.opacity = likeAlpha * (liked ? 1 : 0.75)
     if (likeCountText.current) likeCountText.current.fillOpacity = likeAlpha
+    if (commentText.current) commentText.current.fillOpacity = likeAlpha * 0.9
 
     if (leaderRef.current) leaderRef.current.material.opacity = reveal * passing * appear.current * 0.16
     // quote 0.9 · play mark 0.9 · title 0.75 · author 0.45
@@ -569,6 +634,25 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
                   {like.state.count}
                 </Text>
               </group>
+
+              {/* A comment pops up beside the like button, one every 5s, looping through them all. */}
+              {comment && (
+                <Text
+                  ref={(el: never) => {
+                    commentText.current = el
+                  }}
+                  position={[-(w / 2 - 0.3) + 0.68, -h / 2 - 0.85, 0.02]}
+                  fontSize={0.11}
+                  lineHeight={1.3}
+                  maxWidth={w - 1.1}
+                  color={IVORY}
+                  anchorX="left"
+                  anchorY="middle"
+                  fillOpacity={0}
+                >
+                  {`“${comment.content.length > 90 ? `${comment.content.slice(0, 90).trimEnd()}…` : comment.content}”`}
+                </Text>
+              )}
 
               {isVideo && (
                 <Text
