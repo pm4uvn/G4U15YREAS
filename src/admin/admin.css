@@ -1,7 +1,9 @@
+html.is-admin-route,
 html:has(.admin-shell),
 html:has(.admin-login) {
   overflow: auto;
 }
+html.is-admin-route body,
 body:has(.admin-shell),
 body:has(.admin-login) {
   overflow: auto;

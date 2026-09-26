@@ -480,6 +480,14 @@ export default function AdminApp() {
 
   useEffect(() => {
     document.title = 'G4U · Quản trị'
+    // The main site pins html/body so its own full-screen canvas never scrolls the page; admin
+    // needs ordinary page scrolling instead. Toggling a class (rather than relying on the CSS
+    // `:has()` trick alone, which not every browser supports) makes that unconditional.
+    document.documentElement.classList.add('is-admin-route')
+    return () => document.documentElement.classList.remove('is-admin-route')
+  }, [])
+
+  useEffect(() => {
     if (!supabase) return
     void currentSession().then((s) => {
       setSession(s)
