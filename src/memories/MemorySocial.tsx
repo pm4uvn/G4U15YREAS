@@ -149,6 +149,7 @@ export function MemorySocial({ memoryId, share }: { memoryId: string; share: Sha
       {error && <p className="memory-modal__error">{error}</p>}
 
       <div className="memory-social__comments">
+        <h3 className="memory-social__heading">Bình luận{comments ? ` (${comments.length})` : ''}</h3>
         {comments === null && <p className="memory-social__note">Đang tải bình luận…</p>}
         {comments?.length === 0 && <p className="memory-social__note">Chưa có bình luận nào. Hãy là người đầu tiên.</p>}
         {comments && comments.length > 0 && (

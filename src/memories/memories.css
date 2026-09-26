@@ -220,7 +220,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4.5rem 1.5rem 5rem;
+  padding: 4.5rem 1.5rem 7rem;
   background: rgba(5, 5, 7, 0.94);
   backdrop-filter: blur(10px);
   color: var(--m-text);
@@ -313,11 +313,17 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 1.4rem;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 2rem;
+  padding: 1.1rem 1rem calc(1.1rem + env(safe-area-inset-bottom, 0px));
+  /* An opaque bar of its own — floating transparent over the scrolling content behind it (the
+     comment list especially) made it unreadable, colliding with whatever text scrolled underneath. */
+  background: linear-gradient(to top, rgba(5, 5, 7, 0.96) 60%, rgba(5, 5, 7, 0));
+  backdrop-filter: blur(6px);
 }
 .memory-modal__position {
   font-size: 0.65rem;
@@ -380,6 +386,14 @@
 .memory-social__comments {
   margin-top: 1.2rem;
 }
+.memory-social__heading {
+  margin: 0 0 0.8rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--m-muted);
+  font-weight: 400;
+}
 .memory-social__list {
   list-style: none;
   margin: 0 0 1rem;
@@ -394,7 +408,9 @@
   overscroll-behavior: contain;
 }
 .memory-social__comment {
+  position: relative;
   padding-bottom: 0.8rem;
+  padding-right: 3rem;
   border-bottom: 1px solid rgba(196, 164, 104, 0.12);
 }
 .memory-social__comment-head {
@@ -421,10 +437,20 @@
   overflow-wrap: anywhere;
 }
 .memory-social__comment-delete {
-  margin-top: 0.2rem;
+  /* Small and tucked in its own comment's corner — not styled like the nav bar below, so the two
+     never read as one merged row of controls. */
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+  padding: 0.15rem 0.35rem;
   font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 0.7;
+}
+.memory-social__comment-delete:hover {
+  opacity: 1;
 }
 
 .memory-social__form {

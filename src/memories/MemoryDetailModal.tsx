@@ -146,9 +146,7 @@ function Viewer({ year, memoryId, onClose, onSelect }: ViewerProps) {
             {title && <h2 className="memory-modal__title">{title}</h2>}
             {memory.content && <p className="memory-modal__text">{memory.content}</p>}
             <p className="memory-modal__meta">
-              {memory.author && <span>{memory.author.displayName}</span>}
-              <span>{memoryDateLabel(memory)}</span>
-              {memory.location && <span>{memory.location}</span>}
+              {[memory.author?.displayName, memoryDateLabel(memory), memory.location].filter(Boolean).join(' · ')}
             </p>
             <MemorySocial memoryId={memory.id} share={{ title, year }} />
           </article>
