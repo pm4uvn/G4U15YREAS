@@ -536,16 +536,22 @@
   top: 6.5rem;
   bottom: 8rem;
   width: min(16rem, 22vw);
+  padding: 0.5rem 0.9rem;
   pointer-events: none;
   text-align: right;
   color: var(--fg);
+  /* The cover behind this is a bright sunset photo — plain text (even with a shadow) washed out
+     against it, so a soft dark panel rides along behind the words for guaranteed contrast. */
+  background: linear-gradient(to left, rgba(5, 5, 7, 0.55), rgba(5, 5, 7, 0.15) 85%, transparent);
+  border-radius: 0.75rem;
 }
 .hero-wishes__title {
   margin: 0 0 0.6rem;
   font-size: 0.62rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #d8d1c1;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.85);
 }
 .hero-wishes__mask {
   height: calc(100% - 1.4rem);
@@ -570,13 +576,15 @@
   font-style: italic;
   font-size: 0.88rem;
   line-height: 1.5;
-  color: rgba(232, 226, 214, 0.85);
+  color: #f5f1e8;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9), 0 0 18px rgba(0, 0, 0, 0.6);
 }
 .hero-wishes__author {
   margin: 0;
   font-size: 0.7rem;
   letter-spacing: 0.04em;
-  color: var(--accent);
+  color: #f0c866;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
 }
 @keyframes hero-wishes-up {
   from {
