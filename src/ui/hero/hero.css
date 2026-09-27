@@ -745,7 +745,11 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    pointer-events: auto;
+    /* `.hero` never unmounts — it's just faded out and toggled to pointer-events:none by JS once
+       scrolled past. `auto` here would silently override that forever, covering the full screen
+       and swallowing every later touch on the journey. `inherit` tracks the parent's live value
+       instead: interactive while the cover is showing, hands-off once it's behind everything. */
+    pointer-events: inherit;
   }
   .hero-logo {
     width: min(56vw, 220px);
