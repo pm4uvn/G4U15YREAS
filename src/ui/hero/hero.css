@@ -728,13 +728,24 @@
     left: 1.25rem;
     top: 1.4rem;
   }
+  /* "G4U" alone is short enough to never reach the Autoplay/Sound buttons on the right; the full
+     "| GUITAR FOR YOU" wordmark routinely did, on top of them, on narrower phones. */
+  .hero__brand-rule,
   .hero__brand-sub {
-    letter-spacing: 0.25em;
-    font-size: 0.7rem;
+    display: none;
   }
   .hero__content {
     justify-content: flex-start;
     padding-top: 17svh;
+    padding-bottom: 2.5rem;
+    /* The cover's own .hero has overflow:hidden for the parallax background layers — but with the
+       logo, tagline, three CTA buttons and milestones all stacked, the text column itself is now
+       routinely taller than a phone screen. Without its own scroll, anything past the fold (the
+       registration/wish buttons especially) was simply unreachable. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto;
   }
   .hero-logo {
     width: min(56vw, 220px);

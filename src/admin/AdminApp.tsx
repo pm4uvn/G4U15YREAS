@@ -10,9 +10,11 @@ import {
   deleteCommentAdmin,
   deleteForever,
   deleteMedia,
+  deleteWishAdmin,
   hasAdminRole,
   listComments,
   listMemories,
+  listWishes,
   setDeleted,
   signIn,
   signOut,
@@ -20,6 +22,7 @@ import {
   type AdminComment,
   type AdminFilters,
   type AdminMemory,
+  type AdminWish,
   type MemoryPatch,
 } from './adminApi'
 import './admin.css'
@@ -330,7 +333,60 @@ function mediaSummary(media: MediaRow[]): string {
     .join(', ')
 }
 
+/** Every birthday wish, with a delete for anything that shouldn't be shown on the cover. */
+function WishesPanel() {
+  const [wishes, setWishes] = useState<AdminWish[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const reload = useCallback(() => {
+    listWishes()
+      .then(setWishes)
+      .catch((err) => setError(errorText(err)))
+  }, [])
+
+  useEffect(() => {
+    reload()
+  }, [reload])
+
+  const remove = async (id: string) => {
+    if (!window.confirm('Xoá lời chúc này? Không thể khôi phục.')) return
+    try {
+      await deleteWishAdmin(id)
+      setWishes((list) => list?.filter((w) => w.id !== id) ?? null)
+    } catch (err) {
+      setError(errorText(err))
+    }
+  }
+
+  return (
+    <div>
+      {error && <p className="admin-error">{error}</p>}
+      <p className="admin-count">{wishes === null ? 'Đang tải…' : `${wishes.length} lời chúc`}</p>
+      <ul className="admin-list">
+        {wishes?.map((w) => (
+          <li key={w.id} className="admin-row">
+            <div className="admin-row__body">
+              <div className="admin-row__top">
+                <strong>{w.authorName || 'Ẩn danh'}</strong>
+              </div>
+              <p className="admin-row__text">{w.message}</p>
+              <p className="admin-row__meta">{new Date(w.createdAt).toLocaleString('vi-VN')}</p>
+            </div>
+            <div className="admin-row__actions">
+              <button type="button" className="admin-btn admin-btn--danger admin-btn--small" onClick={() => void remove(w.id)}>
+                Xóa
+              </button>
+            </div>
+          </li>
+        ))}
+        {wishes && wishes.length === 0 && <li className="admin-empty">Chưa có lời chúc nào.</li>}
+      </ul>
+    </div>
+  )
+}
+
 function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
+  const [tab, setTab] = useState<'memories' | 'wishes'>('memories')
   const [filters, setFilters] = useState<AdminFilters>({ year: 'all', status: 'all', trash: 'active', query: '', page: 0 })
   const [search, setSearch] = useState('')
   const [rows, setRows] = useState<AdminMemory[]>([])
@@ -402,6 +458,19 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
         </div>
       </header>
 
+      <div className="admin-tabs">
+        <button type="button" className={`admin-tab ${tab === 'memories' ? 'is-active' : ''}`} onClick={() => setTab('memories')}>
+          Bài đăng
+        </button>
+        <button type="button" className={`admin-tab ${tab === 'wishes' ? 'is-active' : ''}`} onClick={() => setTab('wishes')}>
+          Lời chúc mừng
+        </button>
+      </div>
+
+      {tab === 'wishes' ? (
+        <WishesPanel />
+      ) : (
+      <>
       <form
         className="admin-filters"
         onSubmit={(e) => {
@@ -516,6 +585,8 @@ function Dashboard({ session, onSignOut }: { session: Session; onSignOut: () => 
       </nav>
 
       {editing && <EditDialog row={editing} onClose={() => setEditing(null)} onChanged={handleEdited} />}
+      </>
+      )}
     </div>
   )
 }

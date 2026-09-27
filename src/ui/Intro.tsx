@@ -188,7 +188,12 @@ export function Intro() {
         <span className="hero__brand-sub">GUITAR FOR YOU</span>
       </header>
 
-      <div ref={contentRef} className="hero__content">
+      {/* data-lenis-prevent: Lenis is already live here (it initializes before "Enter the
+          Journey" is even clicked) and normally intercepts every wheel/touch gesture on the page
+          for its own virtual scroll — without this, a real touch-drag here never reached this
+          element's own native scroll at all, even though a scripted scrollTo() (what a quick
+          automated check would use) worked fine, since that bypasses gesture interception. */}
+      <div ref={contentRef} className="hero__content" data-lenis-prevent>
         <div className="hero-logo-parallax">
           <h1 className="hero-logo-wrap hero-enter">
             <AssetImage

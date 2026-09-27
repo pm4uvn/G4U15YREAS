@@ -135,3 +135,28 @@ export async function deleteCommentAdmin(id: string) {
   const { error } = await client().from('g4u_memory_comments').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
+
+export interface AdminWish {
+  id: string
+  authorName: string | null
+  message: string
+  createdAt: string
+}
+
+/** Every live (not soft-deleted) birthday wish, newest first. */
+export async function listWishes(): Promise<AdminWish[]> {
+  const { data, error } = await client()
+    .from('g4u_birthday_wishes')
+    .select('id, author_name, message, created_at')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(500)
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((r) => ({ id: r.id, authorName: r.author_name, message: r.message, createdAt: r.created_at }))
+}
+
+/** Permanently removes a birthday wish (the "admin all" policy allows a hard delete). */
+export async function deleteWishAdmin(id: string) {
+  const { error } = await client().from('g4u_birthday_wishes').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
