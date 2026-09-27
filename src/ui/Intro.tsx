@@ -13,6 +13,7 @@ import { HeroPhotos } from './hero/HeroPhotos'
 import { HERO_ASSETS, HERO_MILESTONES, ROAD_END, heroSources, layerOverrideStyle } from './hero/heroAssets'
 import { useHeroDebug } from './hero/useHeroDebug'
 import { RoadMarkers } from './hero/RoadMarkers'
+import { BirthdayWishForm, BirthdayWishesTicker } from './hero/BirthdayWishes'
 import './hero/hero.css'
 
 // Debug tools exist only in development: with DEV false the dynamic imports are removed from the build.
@@ -174,6 +175,7 @@ export function Intro() {
         </div>
       </div>
       <div className="hero__vignette" />
+      <BirthdayWishesTicker />
       {debug.enabled && HeroDebugPanel && (
         <Suspense fallback={null}>
           <HeroDebugPanel hidden={debug.hidden} toggle={debug.toggle} />
@@ -235,6 +237,7 @@ export function Intro() {
           >
             Đăng ký tham gia sinh nhật
           </a>
+          <BirthdayWishForm />
         </div>
 
         <ul className="hero__milestones hero-enter" aria-label="Jump to a milestone year">

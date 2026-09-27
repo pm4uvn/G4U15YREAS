@@ -527,6 +527,113 @@
   display: none;
 }
 
+/* ---------- Birthday wishes: scrolling display + the button that posts one ---------- */
+
+.hero-wishes {
+  position: fixed;
+  z-index: 2;
+  right: 1.75rem;
+  top: 6.5rem;
+  bottom: 8rem;
+  width: min(16rem, 22vw);
+  pointer-events: none;
+  text-align: right;
+  color: var(--fg);
+}
+.hero-wishes__title {
+  margin: 0 0 0.6rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hero-wishes__mask {
+  height: calc(100% - 1.4rem);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+}
+.hero-wishes__track {
+  animation: hero-wishes-up linear infinite;
+}
+.hero-wishes__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 3svh;
+}
+.hero-wishes__item {
+  margin: 0 0 1.3rem;
+}
+.hero-wishes__message {
+  margin: 0 0 0.25rem;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: rgba(232, 226, 214, 0.85);
+}
+.hero-wishes__author {
+  margin: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+@keyframes hero-wishes-up {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    /* Each .hero-wishes__list is one full copy of the wishes; looping between the two keeps the
+       scroll seamless instead of snapping back to the start. */
+    transform: translateY(-50%);
+  }
+}
+
+.hero-wish-form {
+  position: relative;
+}
+.hero-wish-form__panel {
+  position: absolute;
+  bottom: calc(100% + 0.8rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(20rem, 84vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  background: rgba(8, 5, 3, 0.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(240, 192, 96, 0.3);
+  border-radius: 0.9rem;
+  text-align: left;
+}
+.hero-wish-form__input,
+.hero-wish-form__textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.85rem;
+  color: #eee4cb;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(240, 192, 96, 0.25);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.7rem;
+}
+.hero-wish-form__textarea {
+  resize: vertical;
+}
+.hero-wish-form__error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #d99a8a;
+}
+.hero-wish-form__done {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #eee4cb;
+  text-align: center;
+}
+
 /* ---------- Tablet ---------- */
 
 @media (max-width: 1024px) {
@@ -538,6 +645,11 @@
 /* ---------- Mobile: a re-composed scene, not a shrunken desktop ---------- */
 
 @media (max-width: 720px) {
+  /* The screen is already dense on a phone — the scrolling wishes list is a desktop-only extra;
+     the "Gửi lời chúc mừng" button (part of .hero__ctas, already stacked full-width) still works. */
+  .hero-wishes {
+    display: none;
+  }
   /* Phone paint budget: no filters, blend modes or masks on the moving layers, and the photo cards
      hold still apart from their crossfade. */
   .hero-layer--bg,
