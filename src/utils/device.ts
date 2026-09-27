@@ -29,6 +29,8 @@ export function checkWebglSupport(): boolean {
 }
 
 export function getAdaptiveDpr(): [number, number] {
-  const max = isMobileViewport() ? 1.25 : 2
+  // The scene is mostly stacked transparent planes (photo frames, badges, buttons) — overdraw,
+  // not geometry, so resolution is the lever that matters most for a phone's fill rate.
+  const max = isMobileViewport() ? 1.1 : 2
   return [1, Math.min(max, isBrowser ? window.devicePixelRatio : 1)]
 }

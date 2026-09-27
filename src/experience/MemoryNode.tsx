@@ -8,7 +8,7 @@ import { getHeroFadeEnd, tToSlot } from '../timeline/journey'
 import { useExperienceStore } from '../store/experienceStore'
 import { youtubeThumbnail } from '../lib/youtube'
 import { signPaths } from '../lib/supabaseStorage'
-import { prefersReducedMotion } from '../utils/device'
+import { isMobileViewport, prefersReducedMotion } from '../utils/device'
 import { firstVisual, memoryExcerpt, voiceNotes } from '../memories/memoryFormat'
 import { fetchComments, fetchLikeState, setLiked, type LikeState, type MemoryComment } from '../lib/g4uMemories'
 import type { G4UMemory, G4UMemoryMedia } from '../types/g4u-memory'
@@ -19,9 +19,13 @@ const SIDE_GAP = 1.15
 /** Floats the card's bottom edge above the strings, low enough to stay in view when the camera arrives. */
 const RAISE = 0.7
 
-/** Only memories close to the camera are mounted (and hold a texture). */
+/** Only memories close to the camera are mounted (and hold a texture). Narrower on mobile: each
+ * near card runs its own per-frame updates plus periodic album/comment network calls, and a
+ * phone's GPU also pays more per card in overdraw (frame + shadow + badges + buttons all stack
+ * as transparent layers) — fewer cards alive at once is the single biggest lever for smoothness. */
+const MOBILE = isMobileViewport()
 const SLOTS_BEHIND = 0.8
-const SLOTS_AHEAD = 2.8
+const SLOTS_AHEAD = MOBILE ? 1.6 : 2.8
 
 // Palette
 const GOLD = '#C4A468'
@@ -533,8 +537,10 @@ export function MemoryNode({ memory, slot, side }: MemoryNodeProps) {
                 <meshBasicMaterial ref={shadowMat} map={getShadowTexture()} color="#000000" transparent opacity={0} depthWrite={false} toneMapped={false} />
               </mesh>
 
-              {/* A memory with several photos: two more edges peek out behind the top one, like a stack of prints. */}
-              {isAlbum && (
+              {/* A memory with several photos: two more edges peek out behind the top one, like a
+                  stack of prints. Purely decorative, so it's the first thing dropped on mobile —
+                  two fewer transparent overdraw layers per album card. */}
+              {isAlbum && !MOBILE && (
                 <>
                   <mesh position={[0.16, -0.18, -0.07]} rotation={[0, 0, -0.05]}>
                     <planeGeometry args={[w * 0.94, h * 0.94]} />
