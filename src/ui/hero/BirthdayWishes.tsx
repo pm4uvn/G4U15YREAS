@@ -5,8 +5,12 @@ import { isSupabaseConfigured } from '../../lib/supabase'
 
 const NAME_KEY = 'g4u_comment_author'
 
-/** Newest-first, scrolling on its own from the bottom, looping through every wish. */
-export function BirthdayWishesTicker() {
+/**
+ * Newest-first, scrolling on its own from the bottom, looping through every wish.
+ * Rendered twice: once as a fixed overlay for desktop (`variant="overlay"`, the default), and once
+ * inline inside the mobile scroll column (`variant="inline"`) since a phone has no room to float it.
+ */
+export function BirthdayWishesTicker({ variant = 'overlay' }: { variant?: 'overlay' | 'inline' } = {}) {
   const wishes = useWishesStore((s) => s.wishes)
   const load = useWishesStore((s) => s.load)
 
@@ -20,7 +24,10 @@ export function BirthdayWishesTicker() {
   const seconds = Math.max(18, wishes.reduce((n, w) => n + w.message.length, 0) * 0.22)
 
   return (
-    <aside className="hero-wishes" aria-label="Lời chúc mừng sinh nhật G4U">
+    <aside
+      className={variant === 'inline' ? 'hero-wishes hero-wishes--inline' : 'hero-wishes'}
+      aria-label="Lời chúc mừng sinh nhật G4U"
+    >
       <p className="hero-wishes__title">Lời chúc mừng sinh nhật</p>
       <div className="hero-wishes__mask">
         <div className="hero-wishes__track" style={{ animationDuration: `${seconds}s` }}>

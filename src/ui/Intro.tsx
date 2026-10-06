@@ -245,6 +245,10 @@ export function Intro() {
           <BirthdayWishForm />
         </div>
 
+        {/* The fixed-position ticker above is desktop-only (hidden on mobile, no room to float it);
+            this copy renders inline in the scrollable mobile column instead — hidden on desktop. */}
+        <BirthdayWishesTicker variant="inline" />
+
         <ul className="hero__milestones hero-enter" aria-label="Jump to a milestone year">
           {HERO_MILESTONES.map((m) => (
             <li key={m.year}>
