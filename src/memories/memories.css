@@ -230,11 +230,14 @@
   align-items: safe center;
   justify-content: safe center;
   padding: 4.5rem 1.5rem 7rem;
-  background: rgba(5, 5, 7, 0.94);
-  backdrop-filter: blur(10px);
+  background: rgba(5, 5, 7, 0.98);
   color: var(--m-text);
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* No backdrop-filter here: it creates a new containing block for `position: fixed` descendants
+     (the close button, the prev/next nav), so instead of staying pinned to the viewport they'd
+     scroll away with this container's own content — the background is already near-opaque, so
+     the blur added negligible visual effect anyway. */
 }
 .memory-modal:focus {
   outline: none;

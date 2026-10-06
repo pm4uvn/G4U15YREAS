@@ -751,6 +751,14 @@
        instead: interactive while the cover is showing, hands-off once it's behind everything. */
     pointer-events: inherit;
   }
+  /* The base rule below hardcodes every direct child to `auto`, which defeats the `inherit` above —
+     a touch landing on any CTA/button/ticker still hit-tests as "auto" even once `.hero` has faded,
+     and since this container is the nearest scrollable ancestor on mobile, that touch scrolls *it*
+     instead of reaching the journey underneath. Chain children to the same live value instead. */
+  .hero__content > *,
+  .hero__content button {
+    pointer-events: inherit;
+  }
   .hero-logo {
     width: min(56vw, 220px);
   }
