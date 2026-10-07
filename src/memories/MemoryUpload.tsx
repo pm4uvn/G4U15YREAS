@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { IMAGE_TYPES, LIMITS } from '../lib/supabaseStorage'
 import { youtubeThumbnail } from '../lib/youtube'
 import type { UploadItem, VideoLink } from './hooks/useCreateMemory'
@@ -25,28 +25,35 @@ const STATUS_LABEL: Record<UploadItem['status'], string> = {
   error: 'Lỗi',
 }
 
-export function MemoryUpload({
-  items,
-  videos,
-  disabled,
-  onAdd,
-  onAddVoice,
-  onRemove,
-  onRetry,
-  onAddVideo,
-  onRemoveVideo,
-}: MemoryUploadProps) {
+/** Imperative escape hatch for the parent form: confirm a YouTube link still sitting in the input
+ * (typed but never "Thêm link"-ed) right before final submit, so it isn't silently dropped.
+ * Returns an error message if the pending text doesn't parse as a video, so the caller can stop
+ * the submit instead of quietly going ahead without it; null if there was nothing to flush, or it
+ * was added successfully. */
+export interface MemoryUploadHandle {
+  flushPendingVideoLink: () => string | null
+}
+
+export const MemoryUpload = forwardRef<MemoryUploadHandle, MemoryUploadProps>(function MemoryUpload(
+  { items, videos, disabled, onAdd, onAddVoice, onRemove, onRetry, onAddVideo, onRemoveVideo },
+  ref,
+) {
   const photoInput = useRef<HTMLInputElement>(null)
   const [notes, setNotes] = useState<string[]>([])
   const [link, setLink] = useState('')
   const [linkError, setLinkError] = useState<string | null>(null)
 
-  const addLink = () => {
-    if (!link.trim()) return
+  const addLink = (): string | null => {
+    if (!link.trim()) return null
     const problem = onAddVideo(link)
     setLinkError(problem)
     if (!problem) setLink('')
+    return problem
   }
+
+  useImperativeHandle(ref, () => ({
+    flushPendingVideoLink: () => (link.trim() ? addLink() : null),
+  }))
 
   return (
     <fieldset className="memory-upload" disabled={disabled}>
@@ -181,4 +188,4 @@ export function MemoryUpload({
       )}
     </fieldset>
   )
-}
+})

@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { BUCKET } from '../lib/supabaseStorage'
+import type { NewMediaInput } from '../lib/g4uMemories'
 import type { MediaRow, MemoryRow, MemoryStatus, MemoryVisibility } from '../types/g4u-memory'
 
 export const PAGE_SIZE = 20
@@ -101,6 +102,33 @@ export async function deleteForever(row: AdminMemory) {
   const { error } = await db.from('g4u_memories').delete().eq('id', row.id)
   if (error) throw new Error(error.message)
   if (paths.length > 0) await db.storage.from(BUCKET).remove(paths)
+}
+
+/** Appends new photos/voice notes/videos to an existing memory (the admin edit screen's "add media"). */
+export async function insertMedia(memoryId: string, media: NewMediaInput[]): Promise<MediaRow[]> {
+  if (media.length === 0) return []
+  const { data, error } = await client()
+    .from('g4u_memory_media')
+    .insert(
+      media.map((m) => ({
+        memory_id: memoryId,
+        media_type: m.mediaType,
+        storage_path: m.storagePath,
+        thumbnail_path: m.thumbnailPath,
+        provider: m.provider ?? null,
+        external_id: m.externalId ?? null,
+        original_filename: m.originalFilename ?? null,
+        mime_type: m.mimeType ?? null,
+        file_size: m.fileSize ?? null,
+        width: m.width ?? null,
+        height: m.height ?? null,
+        duration: m.duration ?? null,
+        sort_order: m.sortOrder,
+      })),
+    )
+    .select('*')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as MediaRow[]
 }
 
 export async function deleteMedia(media: MediaRow) {

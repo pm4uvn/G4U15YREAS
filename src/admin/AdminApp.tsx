@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import { signPaths } from '../lib/supabaseStorage'
 import { youtubeThumbnail } from '../lib/youtube'
+import { MemoryUpload, type MemoryUploadHandle } from '../memories/MemoryUpload'
+import '../memories/memories.css'
 import type { MediaRow, MemoryStatus, MemoryVisibility } from '../types/g4u-memory'
 import {
   PAGE_SIZE,
@@ -25,6 +27,7 @@ import {
   type AdminWish,
   type MemoryPatch,
 } from './adminApi'
+import { useAdminMediaUpload } from './useAdminMediaUpload'
 import './admin.css'
 
 const YEARS = Array.from({ length: 17 }, (_, i) => 2010 + i)
@@ -164,6 +167,16 @@ function EditDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const uploadRef = useRef<MemoryUploadHandle>(null)
+  // Stable for the life of this dialog — new media is appended after whatever already exists,
+  // never recomputed mid-edit even as `media` itself grows once a save adds rows to it.
+  const [startSortOrder] = useState(() => (media.length ? Math.max(...media.map((m) => m.sort_order)) + 1 : 0))
+  // Every memory here was created through the public form, which requires a signed-in session — a
+  // null user_id is not a real-world case, just a type the column allows; without it there's no
+  // owner folder to add files into, so the "add media" section simply doesn't offer itself.
+  const canAddMedia = !!row.user_id
+  const mediaUpload = useAdminMediaUpload(row.id, row.user_id ?? '', startSortOrder)
+
   useEffect(() => {
     let live = true
     listComments(row.id)
@@ -186,6 +199,9 @@ function EditDialog({
 
   const save = async (e: FormEvent) => {
     e.preventDefault()
+    // A YouTube link typed but never confirmed with "Thêm link" would otherwise be silently
+    // dropped — attach it now rather than lose it on save (error shows inline under that field).
+    if (canAddMedia && uploadRef.current?.flushPendingVideoLink()) return
     setBusy(true)
     setError(null)
     try {
@@ -199,6 +215,10 @@ function EditDialog({
         status,
         visibility,
       })
+      if (canAddMedia) {
+        const added = await mediaUpload.commitMedia()
+        if (added.length > 0) setMedia((list) => [...list, ...added])
+      }
       onChanged(year)
       onClose()
     } catch (err) {
@@ -283,6 +303,24 @@ function EditDialog({
                 <MediaPreview key={m.id} media={m} onDelete={() => void removeMedia(m)} />
               ))}
             </div>
+          </>
+        )}
+
+        {canAddMedia && (
+          <>
+            <h3>Thêm tệp mới</h3>
+            <MemoryUpload
+              ref={uploadRef}
+              items={mediaUpload.items}
+              videos={mediaUpload.videos}
+              disabled={busy}
+              onAdd={mediaUpload.addFiles}
+              onAddVoice={mediaUpload.addVoice}
+              onRemove={mediaUpload.removeItem}
+              onRetry={mediaUpload.retryUploads}
+              onAddVideo={mediaUpload.addVideoLink}
+              onRemoveVideo={mediaUpload.removeVideo}
+            />
           </>
         )}
 

@@ -4,7 +4,7 @@ import { gsap } from '../animation/gsap'
 import { prefersReducedMotion } from '../utils/device'
 import { useExperienceStore } from '../store/experienceStore'
 import { useCreateMemory, type MemoryFormValues } from './hooks/useCreateMemory'
-import { MemoryUpload } from './MemoryUpload'
+import { MemoryUpload, type MemoryUploadHandle } from './MemoryUpload'
 import { useDialog } from './useDialog'
 import './memories.css'
 
@@ -28,6 +28,7 @@ export default function AddMemoryModal() {
 function Form({ year, onClose }: { year: number; onClose: () => void }) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLFormElement>(null)
+  const uploadRef = useRef<MemoryUploadHandle>(null)
   const { items, videos, state, error, addFiles, addVoice, removeItem, addVideoLink, removeVideo, retryUploads, submit, cancel } =
     useCreateMemory(year)
 
@@ -75,6 +76,10 @@ function Form({ year, onClose }: { year: number; onClose: () => void }) {
     } catch {
       /* private mode — remembering the name is optional */
     }
+    // A YouTube link typed but never confirmed with "Thêm link" would otherwise be silently
+    // dropped — attach it now rather than lose it on submit; if it doesn't parse, stop (the
+    // error shows inline right under that field) instead of quietly sharing without it.
+    if (uploadRef.current?.flushPendingVideoLink()) return
     void submit(values)
   }
 
@@ -145,6 +150,7 @@ function Form({ year, onClose }: { year: number; onClose: () => void }) {
             </label>
 
             <MemoryUpload
+              ref={uploadRef}
               items={items}
               videos={videos}
               disabled={submitting}
