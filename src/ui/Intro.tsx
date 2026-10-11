@@ -236,7 +236,7 @@ export function Intro() {
           </button>
           <a
             className="hero__cta hero__cta--ghost hero-enter"
-            href="https://docs.google.com/forms/d/e/1FAIpQLSeO4ZvfZUbmMGy10v3oU7VWzTATLGVckz_VR7G5m5nnHoJv3Q/viewform"
+            href="https://docs.google.com/forms/d/e/1FAIpQLSfHOmovL9M7vtlKpcuuqAbL_cMS-0gwjlT-6yroeSZDVWdm4w/viewform"
             target="_blank"
             rel="noreferrer"
           >
