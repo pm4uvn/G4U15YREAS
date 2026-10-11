@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTimeline } from '../timeline/useTimeline'
 import { timelineStore } from '../timeline/TimelineController'
-import { tToSlot, useJourneyLayout } from '../timeline/journey'
+import { memorySlot, tToSlot, useJourneyLayout } from '../timeline/journey'
 import { YEARS } from '../timeline/timeline.data'
 import { fetchAllMemoryTexts, type MemoryText } from '../lib/g4uMemories'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { pathLean, useJourneyPath } from '../experience/guitarPath'
 import './ticker.css'
 
-/** Must match MemoryField: memories begin this far into their year's stretch of neck. */
-const LEAD = 0.35
 /** The memory being passed is the one nearest a little ahead of the camera, where its card is in view. */
 const LOOK_AHEAD_SLOTS = 0.7
 
@@ -57,7 +55,7 @@ export function MessageTicker() {
       if (i < 0) continue
       const n = Math.max(layout.counts[year] ?? 0, items.length)
       items.forEach((m, k) => {
-        const slot = layout.starts[i] + (LEAD + (1 - LEAD) * ((k + 1) / (n + 1))) * layout.spans[i]
+        const slot = memorySlot(layout, i, k, n)
         out.push({ ...m, slot, lean: pathLean(path, slot) })
       })
     }
@@ -94,7 +92,11 @@ export function MessageTicker() {
       const nearest = Math.round(idx)
       if (nearest !== current) {
         current = nearest
-        const side = entries[nearest].lean > 0 ? 'right' : 'left'
+        // `lean` tracks where the CARD actually renders on screen (verified by projecting a card's
+        // world position through the live camera) — not the opposite, despite the card's own `side`
+        // being `-lean` internally. The words belong on the other side from the photo, so this is
+        // inverted from `lean`, not matched to it.
+        const side = entries[nearest].lean > 0 ? 'left' : 'right'
         if (aside.current && aside.current.dataset.side !== side) aside.current.dataset.side = side
         for (let k = 0; k < kids.length; k++) {
           const d = Math.abs(k - nearest)

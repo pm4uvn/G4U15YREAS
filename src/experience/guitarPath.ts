@@ -30,6 +30,10 @@ const CAMERA_PHASE_SHIFT = Math.PI / 9 // 20°
 export const NECK_WIDTH = 0.85
 export const SURFACE_LIFT = 0.05
 export const STRING_COUNT = 5
+/** A memory card's nominal width — shared with CameraRig, which aims toward where cards hang. */
+export const CARD_WIDTH = 2.7
+/** Gap between the neck's edge and a card's nearest edge. */
+export const SIDE_GAP = 1.15
 
 export interface NeckFrame {
   point: THREE.Vector3

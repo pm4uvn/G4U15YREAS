@@ -13,8 +13,14 @@ import { YEARS, YEAR_COUNT } from './timeline.data'
 /** An empty stretch of open strings before the first year. */
 export const LEAD_IN_SLOTS = 1
 
-/** How many memories fit along one slot; they hang on the left only, the right carries the message ticker. */
-export const MEMORIES_PER_SLOT = 1.5
+/** A fixed gap (not a fraction of the year's span) kept before the first memory, so it always sits
+ * close to its year's fret — a long span (many memories, spread out for room to view each one)
+ * would otherwise push even the first memory far from the marker that announces the year. */
+export const MEMORY_LEAD_SLOTS = 0.35
+
+/** How many memories fit along one slot; they hang on the left only, the right carries the message ticker.
+ * Halved (was 1.5) so consecutive photos sit twice as far apart — more room to look at each one. */
+export const MEMORIES_PER_SLOT = 0.75
 
 export interface JourneyLayout {
   /** Published memories per year. */
@@ -75,6 +81,18 @@ export function activeYearAtSlot(layout: JourneyLayout, slot: number): number {
   let i = layout.starts.length - 1
   while (i > 0 && layout.starts[i] > slot + 0.5) i--
   return i
+}
+
+/**
+ * Where the k-th (0-based) of a year's n memories sits, spread evenly across the room left after
+ * MEMORY_LEAD_SLOTS — used identically by MemoryField (the 3D cards) and MessageTicker (their
+ * words), so the two always agree on each memory's position along the neck.
+ */
+export function memorySlot(layout: JourneyLayout, yearIndex: number, k: number, n: number): number {
+  const start = layout.starts[yearIndex]
+  const span = layout.spans[yearIndex]
+  const lead = Math.min(MEMORY_LEAD_SLOTS, span)
+  return start + lead + (span - lead) * ((k + 1) / (n + 1))
 }
 
 // Convenience wrappers over the current layout (progress t is 0..1 along the whole journey).

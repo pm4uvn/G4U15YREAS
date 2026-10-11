@@ -1,10 +1,10 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { getJourneyPath } from './guitarPath'
+import { CARD_WIDTH, getJourneyPath, NECK_WIDTH, pathLean, SIDE_GAP } from './guitarPath'
 import { getTimelineState } from '../timeline/TimelineController'
 import { prefersReducedMotion } from '../utils/device'
-import { getLayout } from '../timeline/journey'
+import { getLayout, tToSlot } from '../timeline/journey'
 
 const PULL_BACK = 1.7
 const BASE_FOV = 50
@@ -16,6 +16,17 @@ const MAX_FOV = 96
 // must stay well inside year 2011's own active window, otherwise the camera
 // centers on 2012's node before the user has scrolled anywhere.
 const LOOK_AHEAD_YEARS = 0.25
+// How much the camera turns to actually face the upcoming photo/video instead of looking straight
+// down the neck's centerline — the full lateral distance to a card would swing the neck itself out
+// of frame, so this is a fraction of it: enough to visibly turn toward the memory, not stare at it.
+const CARD_LOOK_STRENGTH = 0.6
+const CARD_LOOK_OFFSET = NECK_WIDTH / 2 + SIDE_GAP + CARD_WIDTH / 2
+// Which side to turn toward is sampled this far ahead — deliberately NOT the same as the gaze's own
+// LOOK_AHEAD_YEARS (0.25 slots). A card reads fullest around 0.9 slots ahead of the scroll position
+// (see MemoryNode's depth curve), so sampling the lean at only 0.25 slots ahead was frequently
+// reading the WRONG side of a nearby helix reversal — the camera would turn away from the very
+// photo it was approaching. This matches where the card everyone's actually looking at really is.
+const CARD_LEAN_LOOK_AHEAD_SLOTS = 0.9
 const PARALLAX_STRENGTH = 0.12 // the path stays essentially still under the pointer
 // Dragging with the mouse turns the camera's head — a real look-around, not just the small
 // positional drift above. Yaw is the wider of the two, like turning to look down the strings;
@@ -28,6 +39,10 @@ const ROLL_STRENGTH = 6.5
 const REDUCED_MOTION = prefersReducedMotion()
 const CAMERA_DAMPING = REDUCED_MOTION ? 1 : 0.055
 const ROLL_DAMPING = REDUCED_MOTION ? 1 : 0.08
+// pathLean flips between -1 and 1 outright wherever the helix reverses — damping it here is what
+// turns that into a smooth swing instead of the look target (and so the whole view) snapping
+// sideways the instant the look-ahead point crosses a reversal.
+const CARD_SIDE_DAMPING = REDUCED_MOTION ? 1 : 0.02
 
 const _point = new THREE.Vector3()
 const _tangent = new THREE.Vector3()
@@ -38,11 +53,14 @@ const _up = new THREE.Vector3()
 const _worldUp = new THREE.Vector3(0, 1, 0)
 const _lookDir = new THREE.Vector3()
 const _lookAt = new THREE.Vector3()
+const _lookTangent = new THREE.Vector3()
+const _cardRight = new THREE.Vector3()
 const _yawQuat = new THREE.Quaternion()
 const _pitchQuat = new THREE.Quaternion()
 
 export function CameraRig() {
   const currentRoll = useRef(0)
+  const currentCardOffset = useRef(0)
 
   useFrame(({ camera, size }) => {
     const cam = camera as THREE.PerspectiveCamera
@@ -68,6 +86,17 @@ export function CameraRig() {
 
     const lookAheadT = THREE.MathUtils.clamp(t + LOOK_AHEAD_YEARS / getLayout().slotsLength, 0, 1)
     path.curve.getPointAt(lookAheadT, _lookTarget)
+
+    // Turn toward whichever side the upcoming memory actually hangs on (same rule MemoryField uses
+    // to place the cards), so the camera's gaze visibly settles on the photo/video, not just the neck.
+    const cardLeanSlot = tToSlot(t) + CARD_LEAN_LOOK_AHEAD_SLOTS
+    const cardLeanT = THREE.MathUtils.clamp(cardLeanSlot / path.slotsLength, 0, 1)
+    path.curve.getTangentAt(cardLeanT, _lookTangent)
+    _cardRight.crossVectors(_lookTangent, _worldUp).normalize()
+    const cardSide = -pathLean(path, cardLeanSlot)
+    const targetCardOffset = cardSide * CARD_LOOK_OFFSET * CARD_LOOK_STRENGTH
+    currentCardOffset.current = THREE.MathUtils.lerp(currentCardOffset.current, targetCardOffset, CARD_SIDE_DAMPING)
+    _lookTarget.addScaledVector(_cardRight, currentCardOffset.current)
 
     _right.crossVectors(_tangent, _worldUp).normalize()
     _up.crossVectors(_right, _tangent).normalize()

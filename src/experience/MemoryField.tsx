@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useTimelineStore } from '../timeline/TimelineController'
-import { useJourneyLayout } from '../timeline/journey'
+import { memorySlot, useJourneyLayout } from '../timeline/journey'
 import { YEARS, YEAR_COUNT } from '../timeline/timeline.data'
 import { loadMore, useMemoriesByYear } from '../memories/hooks/useMemoriesByYear'
 import { MemoryNode } from './MemoryNode'
@@ -8,9 +8,6 @@ import { pathLean, useJourneyPath } from './guitarPath'
 
 /** Memories are mounted only for the active year and its neighbours; the rest stay unloaded. */
 const YEARS_AROUND = 1
-
-/** Fraction of a year's stretch left empty after its fret before the first memory. */
-const LEAD = 0.35
 
 function YearMemories({ yearIndex }: { yearIndex: number }) {
   const year = YEARS[yearIndex].year
@@ -23,8 +20,6 @@ function YearMemories({ yearIndex }: { yearIndex: number }) {
     if (hasMore && !loadingMore) void loadMore(year)
   }, [hasMore, loadingMore, year, items.length])
 
-  const start = layout.starts[yearIndex]
-  const span = layout.spans[yearIndex]
   // Place by the year's full count so positions stay put while later pages are still loading.
   const n = Math.max(layout.counts[year] ?? 0, items.length)
 
@@ -32,9 +27,7 @@ function YearMemories({ yearIndex }: { yearIndex: number }) {
     <>
       {items.map((memory, k) => {
         // Spread the year's memories evenly across its stretch of neck, on whichever side of the strings is open at that point.
-        // Memories begin a little way past the year's fret so the first ones arrive at a comfortable
-        // distance from the camera instead of right on top of it.
-        const slot = start + (LEAD + (1 - LEAD) * ((k + 1) / (n + 1))) * span
+        const slot = memorySlot(layout, yearIndex, k, n)
         return <MemoryNode key={memory.id} memory={memory} slot={slot} side={-pathLean(path, slot) as -1 | 1} />
       })}
     </>

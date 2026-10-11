@@ -273,6 +273,11 @@
 }
 .memory-modal__media {
   min-width: 0;
+  /* The grid row's height follows the taller column — usually the story text. Centering the media
+     column within that (the grid's own default) left an empty gap above the photo whenever the
+     text ran long, with the photo pushed down past the fold. Aligning it to the top instead lines
+     it up with the title, which reads as balanced regardless of how long the story is. */
+  align-self: start;
 }
 .memory-modal__story {
   min-width: 0;

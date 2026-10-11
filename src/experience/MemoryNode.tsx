@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Line, Text } from '@react-three/drei'
 import * as THREE from 'three'
-import { getNeckFrame, NECK_WIDTH, SURFACE_LIFT, useJourneyPath } from './guitarPath'
+import { CARD_WIDTH, getNeckFrame, NECK_WIDTH, SIDE_GAP, SURFACE_LIFT, useJourneyPath } from './guitarPath'
 import { getTimelineState } from '../timeline/TimelineController'
 import { getHeroFadeEnd, tToSlot } from '../timeline/journey'
 import { useExperienceStore } from '../store/experienceStore'
@@ -13,9 +13,6 @@ import { firstVisual, memoryExcerpt, voiceNotes } from '../memories/memoryFormat
 import { fetchComments, fetchLikeState, setLiked, type LikeState, type MemoryComment } from '../lib/g4uMemories'
 import type { G4UMemory, G4UMemoryMedia } from '../types/g4u-memory'
 
-const CARD_WIDTH = 2.7
-/** Gap between the neck's edge and the card's nearest edge. */
-const SIDE_GAP = 1.15
 /** Floats the card's bottom edge above the strings, low enough to stay in view when the camera arrives. */
 const RAISE = 0.7
 
